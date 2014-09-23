@@ -1,16 +1,5 @@
-
-include("leveldb.jl")
-
 using Base.Test
-
-import leveldb.open_db
-import leveldb.close_db
-import leveldb.create_write_batch
-import leveldb.batch_put
-import leveldb.write_batch
-import leveldb.db_put
-import leveldb.db_get
-
+using LevelDB
 
 db = open_db("level.db", true)
 batch = create_write_batch()

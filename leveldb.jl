@@ -1,4 +1,12 @@
-module leveldb
+module LevelDB
+
+export open_db
+export close_db
+export create_write_batch
+export batch_put
+export write_batch
+export db_put
+export db_get
 
 
 function open_db(file_path, create_if_missing)

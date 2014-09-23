@@ -63,6 +63,10 @@ function write_batch(db, batch)
 Commit the WriteBatch into the database as an atomic write.
 
 
+## TODO
+
+In additiona to key lookups, LevelDB supports iterator based range searches. For example one can list all entries whose keys are between Bar and Foo.
+
 ## Author
 
 Jerry Zhenlei Cai ( jpenguin@gmail dot com )
