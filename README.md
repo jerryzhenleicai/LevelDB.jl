@@ -42,7 +42,7 @@ Return value is a Uint8 array, one can use the reinterpret Julia function to cas
 
 ## Batched Write
 
-LevelDB supports group a number of put operations into a WriteBatch, the batch will either succeeds as a whole or fail altogether, behaving like an atomic update.
+LevelDB supports grouping a number of put operations into a WriteBatch, the batch will either succeed as a whole or fail altogether, behaving like an atomic update.
 
 ```
 function create_write_batch()
@@ -61,3 +61,8 @@ function write_batch(db, batch)
 ```
 
 Commit the WriteBatch into the database as an atomic write.
+
+
+## Author
+
+Jerry Zhenlei Cai ( jpenguin@gmail dot com )
