@@ -4,6 +4,7 @@ include("leveldb.jl")
 using Base.Test
 
 import leveldb.open_db
+import leveldb.close_db
 import leveldb.create_write_batch
 import leveldb.batch_put
 import leveldb.write_batch
@@ -41,3 +42,6 @@ readback_value = reinterpret(Float64,db_get(db, key))
 float_array[1] = 100.0
 @test float_array != readback_value
 println("Floating point array read back OK")
+
+close_db(db)
+println("All Tests Passed.")

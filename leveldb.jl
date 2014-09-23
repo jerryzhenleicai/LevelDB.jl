@@ -17,6 +17,11 @@ function open_db(file_path, create_if_missing)
     return db
 end
 
+
+function close_db(db)
+    ccall( (:leveldb_close, "libleveldb"), Void, (Ptr{Void},), db)
+end
+
 function db_put(db, key, value, val_len)
     options = ccall( (:leveldb_writeoptions_create, "libleveldb"), Ptr{Void}, ())
     err = Ptr{Uint8}[0]
