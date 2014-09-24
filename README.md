@@ -9,8 +9,10 @@ You can build LevelDB from its source code at https://github.com/google/leveldb.
 
 ## Run Testing Code
 
-This module consists of two Julia source files. leveldb.jl is the main source file, test_leveldb.jl contains testing code.
-
+```
+julia test/runtests.jl
+```
+This will exercise batched and non-batched writes and reads for string and float array values.
 
 ## Create/Open/Close a LevelDB database
 
