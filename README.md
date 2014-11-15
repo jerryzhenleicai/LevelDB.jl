@@ -64,14 +64,15 @@ function write_batch(db, batch)
 
 Commit the WriteBatch into the database as an atomic write.
 
-## General `for` loop
+## General for loop
 
 ```
-for (k, v) in db_range(db, "key_start", "key_end")
+range = db_range(db, "key_start", "key_end")
+for (k, v) in range
   #do something
 end
 ```
-Note: if you `break` the loop, you had to manually close the range by `range_close`.
+Note: if you `break` the loop, you had to manually close the range by `range_close(range)`.
 
 ## Author
 
