@@ -13,6 +13,12 @@ readback_value = bytestring(db_get(db, "key1"))
 
 println("String read back OK")
 
+
+db_delete(db, "key1")
+@test isempty(db_get(db, "key1")) == true
+println("Successfully deleted")
+
+
 # Now write a Float64 array
 
 float_array = Float64[1.0, 2.0, 3.3, 4.4]

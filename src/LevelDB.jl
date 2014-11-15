@@ -7,6 +7,7 @@ export batch_put
 export write_batch
 export db_put
 export db_get
+export db_delete
 export db_range
 export range_close
 
@@ -57,6 +58,17 @@ function db_get(db, key)
     else
         s = pointer_to_array(value, (val_len[1],), true)
         s
+    end
+end
+
+function db_delete(db, key)
+    options = ccall( (:leveldb_writeoptions_create, "libleveldb"), Ptr{Void}, ())
+    err = Ptr{Uint8}[0]
+    ccall( (:leveldb_delete, "libleveldb"), Void,
+          (Ptr{Void}, Ptr{Void}, Ptr{Void}, Uint, Ptr{Ptr{Uint8}} ),
+          db, options, key, length(key), err)
+    if err[1] != C_NULL
+        error(bytestring(err[1]))
     end
 end
 

@@ -42,6 +42,11 @@ function db_get(db, key)
 Return value is a Uint8 array, one can use the reinterpret Julia function to cast it into the right array type (see test code).
 
 
+```
+function db_delete(db, key)
+```
+
+
 ## Batched Write
 
 LevelDB supports grouping a number of put operations into a WriteBatch, the batch will either succeed as a whole or fail altogether, behaving like an atomic update.
