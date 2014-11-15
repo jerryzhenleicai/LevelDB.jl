@@ -104,7 +104,7 @@ function iter_key(it::Ptr{Void})
   key = ccall( (:leveldb_iter_key, "libleveldb"), Ptr{Uint8}, 
     (Ptr{Void}, Ptr{Csize_t}),
     it, k_len)
-  bytestring(pointer_to_array(key, (k_len[1],), true))
+  bytestring(key, k_len[1])
 end
 
 function iter_value(it::Ptr{Void})
