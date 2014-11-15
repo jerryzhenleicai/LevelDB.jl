@@ -64,10 +64,14 @@ function write_batch(db, batch)
 
 Commit the WriteBatch into the database as an atomic write.
 
+## General `for` loop
 
-## TODO
-
-In additiona to key lookups, LevelDB supports iterator based range searches. For example one can list all entries whose keys are between Bar and Foo.
+```
+for (k, v) in db_range(db, "key_start", "key_end")
+  #do something
+end
+```
+Note: if you `break` the loop, you had to manually close the range by `range_close`.
 
 ## Author
 
