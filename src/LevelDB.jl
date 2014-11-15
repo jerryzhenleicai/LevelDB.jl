@@ -112,7 +112,7 @@ function iter_value(it::Ptr{Void})
   value = ccall( (:leveldb_iter_value, "libleveldb"), Ptr{Uint8}, 
     (Ptr{Void}, Ptr{Csize_t}),
     it, v_len)
-  pointer_to_array(value, (v_len[1],), true)
+  pointer_to_array(value, (v_len[1],), false)
 end
 
 function iter_seek(it::Ptr{Void}, key)
