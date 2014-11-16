@@ -42,6 +42,11 @@ function db_get(db, key)
 Return value is a Uint8 array, one can use the reinterpret Julia function to cast it into the right array type (see test code).
 
 
+```
+function db_delete(db, key)
+```
+
+
 ## Batched Write
 
 LevelDB supports grouping a number of put operations into a WriteBatch, the batch will either succeed as a whole or fail altogether, behaving like an atomic update.
@@ -64,10 +69,15 @@ function write_batch(db, batch)
 
 Commit the WriteBatch into the database as an atomic write.
 
+## General for loop
 
-## TODO
-
-In additiona to key lookups, LevelDB supports iterator based range searches. For example one can list all entries whose keys are between Bar and Foo.
+```
+range = db_range(db, "key_start", "key_end")
+for (k, v) in range
+  #do something
+end
+```
+Note: if you `break` the loop, you had to manually close the range by `range_close(range)`.
 
 ## Author
 

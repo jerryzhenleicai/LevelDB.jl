@@ -7,6 +7,9 @@ export batch_put
 export write_batch
 export db_put
 export db_get
+export db_delete
+export db_range
+export range_close
 
 
 function open_db(file_path, create_if_missing)
@@ -58,6 +61,17 @@ function db_get(db, key)
     end
 end
 
+function db_delete(db, key)
+    options = ccall( (:leveldb_writeoptions_create, "libleveldb"), Ptr{Void}, ())
+    err = Ptr{Uint8}[0]
+    ccall( (:leveldb_delete, "libleveldb"), Void,
+          (Ptr{Void}, Ptr{Void}, Ptr{Void}, Uint, Ptr{Ptr{Uint8}} ),
+          db, options, key, length(key), err)
+    if err[1] != C_NULL
+        error(bytestring(err[1]))
+    end
+end
+
 
 function create_write_batch()
     batch = ccall( (:leveldb_writebatch_create, "libleveldb"), Ptr{Void},())
@@ -82,5 +96,96 @@ function write_batch(db, batch)
         error(bytestring(err[1])) */
     end
 end
+
+
+
+function create_iter(db::Ptr{Void}, options::Ptr{Void})
+  ccall( (:leveldb_create_iterator, "libleveldb"), Ptr{Void},
+              (Ptr{Void}, Ptr{Void}),
+              db, options)
+end
+
+function iter_valid(it::Ptr{Void})
+  ccall( (:leveldb_iter_valid, "libleveldb"), Uint8, 
+    (Ptr{Void},),
+    it) == 1
+end
+
+function iter_key(it::Ptr{Void})
+  k_len = Csize_t[0]
+  key = ccall( (:leveldb_iter_key, "libleveldb"), Ptr{Uint8}, 
+    (Ptr{Void}, Ptr{Csize_t}),
+    it, k_len)
+  bytestring(key, k_len[1])
+end
+
+function iter_value(it::Ptr{Void})
+  v_len = Csize_t[0]
+  value = ccall( (:leveldb_iter_value, "libleveldb"), Ptr{Uint8}, 
+    (Ptr{Void}, Ptr{Csize_t}),
+    it, v_len)
+  pointer_to_array(value, (v_len[1],), false)
+end
+
+function iter_seek(it::Ptr{Void}, key)
+  ccall( (:leveldb_iter_seek, "libleveldb"), Void, 
+    (Ptr{Void}, Ptr{Uint8}, Uint),
+    it, key, length(key))
+end
+
+function iter_next(it::Ptr{Void})
+  ccall( (:leveldb_iter_next, "libleveldb"), Void, 
+    (Ptr{Void},),
+    it)
+end
+
+type Range
+  iter::Ptr{Void}
+  options::Ptr{Void}
+  key_start::String
+  key_end::String
+  destroyed::Bool
+end
+
+function db_range(db, key_start, key_end="\uffff")
+  options = ccall( (:leveldb_readoptions_create, "libleveldb"), Ptr{Void}, ())
+  iter = create_iter(db, options)
+  Range(iter, options, key_start, key_end, false)
+end
+
+function range_close(range::Range)
+  if !range.destroyed
+    range.destroyed = true
+    ccall( (:leveldb_iter_destroy, "libleveldb"), Void, 
+      (Ptr{Void},),
+      range.iter) 
+    ccall( (:leveldb_readoptions_destroy, "libleveldb"), Void, 
+      (Ptr{Void},),
+      range.options)
+  end
+end
+
+function Base.start(range::Range)
+  iter_seek(range.iter, range.key_start)
+end
+
+function Base.done(range::Range, state=None) 
+  if range.destroyed
+    return true
+  end
+  isdone = iter_valid(range.iter) ? iter_key(range.iter) > range.key_end : true
+  if isdone
+    range_close(range)
+  end
+  isdone
+end
+
+function Base.next(range::Range, state=None)
+  k = iter_key(range.iter)
+  v = iter_value(range.iter)
+  iter_next(range.iter)
+  ((k, v), None)
+end
+
 
 end
