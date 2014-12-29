@@ -61,3 +61,4 @@ println("Pass iterator")
 
 close_db(db)
 println("All Tests Passed.")
+run(`rm -rf level.db`)
