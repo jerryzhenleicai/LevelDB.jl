@@ -12,7 +12,13 @@ provides(Sources, URI(url), libleveldbjl, unpacked_dir="leveldb-$(version)")
 leveldbbuilddir = BinDeps.builddir(libleveldbjl)
 leveldbsrcdir = joinpath(BinDeps.depsdir(libleveldbjl),"src", "leveldb-$version")
 leveldblibdir = BinDeps.libdir(libleveldbjl)
-leveldblibfile = joinpath(leveldblibdir,libleveldbjl.name*".so")
+if OS_NAME == :Darwin
+    leveldbsofile  = "libleveldb.dylib"
+    leveldblibfile = joinpath(leveldblibdir,libleveldbjl.name*".dylib")
+else
+    leveldbsofile  = "libleveldb.so"
+    leveldblibfile = joinpath(leveldblibdir,libleveldbjl.name*".so")
+end
 
 provides(BuildProcess,
     (@build_steps begin
@@ -22,7 +28,7 @@ provides(BuildProcess,
             ChangeDirectory(leveldbsrcdir)
             FileRule(leveldblibfile, @build_steps begin
                 `make`
-                `cp libleveldb.so $(leveldblibfile)`
+                `cp $(leveldbsofile) $(leveldblibfile)`
             end)
         end
     end), libleveldbjl, os = :Unix)
