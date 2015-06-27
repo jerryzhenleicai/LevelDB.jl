@@ -46,7 +46,7 @@ function db_put(db, key, value, val_len)
     options = ccall( (:leveldb_writeoptions_create, libleveldbjl), Ptr{Void}, ())
     err = Ptr{Uint8}[0]
     ccall( (:leveldb_put, libleveldbjl), Void,
-          (Ptr{Void}, Ptr{Void}, Ptr{Void}, Uint, Ptr{Uint8}, Uint, Ptr{Ptr{Uint8}} ),
+          (Ptr{Void}, Ptr{Void}, Ptr{Uint8}, Uint, Ptr{Uint8}, Uint, Ptr{Ptr{Uint8}} ),
           db, options,key, length(key), value, val_len, err)
     if err[1] != C_NULL
         error(bytestring(err[1]))
@@ -74,7 +74,7 @@ function db_delete(db, key)
     options = ccall( (:leveldb_writeoptions_create, libleveldbjl), Ptr{Void}, ())
     err = Ptr{Uint8}[0]
     ccall( (:leveldb_delete, libleveldbjl), Void,
-          (Ptr{Void}, Ptr{Void}, Ptr{Void}, Uint, Ptr{Ptr{Uint8}} ),
+          (Ptr{Void}, Ptr{Void}, Ptr{Uint8}, Uint, Ptr{Ptr{Uint8}} ),
           db, options, key, length(key), err)
     if err[1] != C_NULL
         error(bytestring(err[1]))
