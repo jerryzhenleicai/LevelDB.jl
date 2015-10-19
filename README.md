@@ -39,7 +39,7 @@ key is a string, value is a pointer to a byte array, val_len is its length
 function db_get(db, key)
 ```
 
-Return value is a Uint8 array, one can use the reinterpret Julia function to cast it into the right array type (see test code).
+Return value is a UInt8 array, one can use the reinterpret Julia function to cast it into the right array type (see test code).
 
 
 ```

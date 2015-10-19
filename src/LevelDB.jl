@@ -25,11 +25,11 @@ function open_db(file_path, create_if_missing)
     options = ccall( (:leveldb_options_create, libleveldbjl), Ptr{Void}, ())
     if create_if_missing
         ccall( (:leveldb_options_set_create_if_missing, libleveldbjl), Void,
-              (Ptr{Void}, Uint8), options, 1)
+              (Ptr{Void}, UInt8), options, 1)
     end
-    err = Ptr{Uint8}[0]
+    err = Ptr{UInt8}[0]
     db = ccall( (:leveldb_open, libleveldbjl), Ptr{Void},
-               (Ptr{Void}, Ptr{Uint8}, Ptr{Ptr{Uint8}}) , options, file_path, err)
+               (Ptr{Void}, Ptr{UInt8}, Ptr{Ptr{UInt8}}) , options, file_path, err)
 
     if db == C_NULL
         error(bytestring(err[1]))
@@ -44,23 +44,23 @@ end
 
 function db_put(db, key, value, val_len)
     options = ccall( (:leveldb_writeoptions_create, libleveldbjl), Ptr{Void}, ())
-    err = Ptr{Uint8}[0]
+    err = Ptr{UInt8}[0]
     ccall( (:leveldb_put, libleveldbjl), Void,
-          (Ptr{Void}, Ptr{Void}, Ptr{Uint8}, Uint, Ptr{Uint8}, Uint, Ptr{Ptr{Uint8}} ),
+          (Ptr{Void}, Ptr{Void}, Ptr{UInt8}, UInt, Ptr{UInt8}, UInt, Ptr{Ptr{UInt8}} ),
           db, options,key, length(key), value, val_len, err)
     if err[1] != C_NULL
         error(bytestring(err[1]))
     end
 end
 
-# return an Uint8 array obj
+# return an UInt8 array obj
 function db_get(db, key)
     # leveldb_get will allocate the buffer for return value
     options = ccall( (:leveldb_readoptions_create, libleveldbjl), Ptr{Void}, ())
-    err = Ptr{Uint8}[0]
+    err = Ptr{UInt8}[0]
     val_len = Csize_t[0]
-    value = ccall( (:leveldb_get, libleveldbjl), Ptr{Uint8},
-          (Ptr{Void}, Ptr{Void}, Ptr{Uint8}, Uint, Ptr{Csize_t},  Ptr{Ptr{Uint8}} ),
+    value = ccall( (:leveldb_get, libleveldbjl), Ptr{UInt8},
+          (Ptr{Void}, Ptr{Void}, Ptr{UInt8}, UInt, Ptr{Csize_t},  Ptr{Ptr{UInt8}} ),
           db, options, key, length(key), val_len, err)
     if err[1] != C_NULL
         error(bytestring(err[1]))
@@ -72,9 +72,9 @@ end
 
 function db_delete(db, key)
     options = ccall( (:leveldb_writeoptions_create, libleveldbjl), Ptr{Void}, ())
-    err = Ptr{Uint8}[0]
+    err = Ptr{UInt8}[0]
     ccall( (:leveldb_delete, libleveldbjl), Void,
-          (Ptr{Void}, Ptr{Void}, Ptr{Uint8}, Uint, Ptr{Ptr{Uint8}} ),
+          (Ptr{Void}, Ptr{Void}, Ptr{UInt8}, UInt, Ptr{Ptr{UInt8}} ),
           db, options, key, length(key), err)
     if err[1] != C_NULL
         error(bytestring(err[1]))
@@ -91,15 +91,15 @@ end
 
 function batch_put(batch, key, value, val_len)
     ccall( (:leveldb_writebatch_put, libleveldbjl), Void,
-          (Ptr{Uint8}, Ptr{Uint8}, Uint, Ptr{Uint8}, Uint),
+          (Ptr{UInt8}, Ptr{UInt8}, UInt, Ptr{UInt8}, UInt),
           batch, key, length(key), value, val_len)
 end
 
 function write_batch(db, batch)
     options = ccall( (:leveldb_writeoptions_create, libleveldbjl), Ptr{Void}, ())
-    err = Ptr{Uint8}[0]
+    err = Ptr{UInt8}[0]
     ccall( (:leveldb_write, libleveldbjl), Void,
-          (Ptr{Void}, Ptr{Void}, Ptr{Void},  Ptr{Ptr{Uint8}} ),
+          (Ptr{Void}, Ptr{Void}, Ptr{Void},  Ptr{Ptr{UInt8}} ),
           db, options, batch, err)
     if err[1] != C_NULL
         error(bytestring(err[1])) */
@@ -115,14 +115,14 @@ function create_iter(db::Ptr{Void}, options::Ptr{Void})
 end
 
 function iter_valid(it::Ptr{Void})
-  ccall( (:leveldb_iter_valid, libleveldbjl), Uint8,
+  ccall( (:leveldb_iter_valid, libleveldbjl), UInt8,
     (Ptr{Void},),
     it) == 1
 end
 
 function iter_key(it::Ptr{Void})
   k_len = Csize_t[0]
-  key = ccall( (:leveldb_iter_key, libleveldbjl), Ptr{Uint8},
+  key = ccall( (:leveldb_iter_key, libleveldbjl), Ptr{UInt8},
     (Ptr{Void}, Ptr{Csize_t}),
     it, k_len)
   bytestring(key, k_len[1])
@@ -130,7 +130,7 @@ end
 
 function iter_value(it::Ptr{Void})
   v_len = Csize_t[0]
-  value = ccall( (:leveldb_iter_value, libleveldbjl), Ptr{Uint8},
+  value = ccall( (:leveldb_iter_value, libleveldbjl), Ptr{UInt8},
     (Ptr{Void}, Ptr{Csize_t}),
     it, v_len)
   pointer_to_array(value, (v_len[1],), false)
@@ -138,7 +138,7 @@ end
 
 function iter_seek(it::Ptr{Void}, key)
   ccall( (:leveldb_iter_seek, libleveldbjl), Void,
-    (Ptr{Void}, Ptr{Uint8}, Uint),
+    (Ptr{Void}, Ptr{UInt8}, UInt),
     it, key, length(key))
 end
 
@@ -151,8 +151,8 @@ end
 type Range
   iter::Ptr{Void}
   options::Ptr{Void}
-  key_start::String
-  key_end::String
+  key_start::AbstractString
+  key_end::AbstractString
   destroyed::Bool
 end
 
@@ -178,7 +178,7 @@ function Base.start(range::Range)
   iter_seek(range.iter, range.key_start)
 end
 
-function Base.done(range::Range, state=None)
+function Base.done(range::Range, state=Union{})
   if range.destroyed
     return true
   end
@@ -189,11 +189,11 @@ function Base.done(range::Range, state=None)
   isdone
 end
 
-function Base.next(range::Range, state=None)
+function Base.next(range::Range, state=Union{})
   k = iter_key(range.iter)
   v = iter_value(range.iter)
   iter_next(range.iter)
-  ((k, v), None)
+  ((k, v), Union{})
 end
 
 

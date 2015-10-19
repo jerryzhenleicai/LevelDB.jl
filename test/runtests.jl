@@ -43,13 +43,13 @@ println("Floating point array read back OK")
 db_put(db, "key2", "v2", 2)
 db_put(db, "key3", "v3", 2)
 
-d = {
+d = Dict(
   "key1" => "v1",
   "key2" => "v2",
-  "key3" => "v3",
-}
+  "key3" => "v3"
+)
 
-for (k, v) in d 
+for (k, v) in d
   db_put(db, k, v, length(v))
 end
 
