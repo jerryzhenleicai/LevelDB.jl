@@ -28,4 +28,4 @@ provides(BuildProcess,
         end
     end), libleveldbjl, os = :Unix)
 
-@BinDeps.install [ :libleveldbjl => :libleveldbjl]
+@BinDeps.install Dict(:libleveldbjl =>:libleveldbjl)
