@@ -32,7 +32,7 @@ function open_db(file_path, create_if_missing)
                (Ptr{Void}, Ptr{UInt8}, Ptr{Ptr{UInt8}}) , options, file_path, err)
 
     if db == C_NULL
-        error(bytestring(err[1]))
+        error(String(err[1]))
     end
     return db
 end
@@ -49,7 +49,7 @@ function db_put(db, key, value, val_len)
           (Ptr{Void}, Ptr{Void}, Ptr{UInt8}, UInt, Ptr{UInt8}, UInt, Ptr{Ptr{UInt8}} ),
           db, options,key, length(key), value, val_len, err)
     if err[1] != C_NULL
-        error(bytestring(err[1]))
+        error(String(err[1]))
     end
 end
 
@@ -63,9 +63,9 @@ function db_get(db, key)
           (Ptr{Void}, Ptr{Void}, Ptr{UInt8}, UInt, Ptr{Csize_t},  Ptr{Ptr{UInt8}} ),
           db, options, key, length(key), val_len, err)
     if err[1] != C_NULL
-        error(bytestring(err[1]))
+        error(String(err[1]))
     else
-        s = pointer_to_array(value, (val_len[1],), true)
+        s = unsafe_wrap(Array{UInt8,1},value, (val_len[1],), true)
         s
     end
 end
@@ -77,7 +77,7 @@ function db_delete(db, key)
           (Ptr{Void}, Ptr{Void}, Ptr{UInt8}, UInt, Ptr{Ptr{UInt8}} ),
           db, options, key, length(key), err)
     if err[1] != C_NULL
-        error(bytestring(err[1]))
+        error(String(err[1]))
     end
 end
 
@@ -102,7 +102,7 @@ function write_batch(db, batch)
           (Ptr{Void}, Ptr{Void}, Ptr{Void},  Ptr{Ptr{UInt8}} ),
           db, options, batch, err)
     if err[1] != C_NULL
-        error(bytestring(err[1])) */
+        error(String(err[1])) */
     end
 end
 
@@ -125,7 +125,7 @@ function iter_key(it::Ptr{Void})
   key = ccall( (:leveldb_iter_key, libleveldbjl), Ptr{UInt8},
     (Ptr{Void}, Ptr{Csize_t}),
     it, k_len)
-  bytestring(key, k_len[1])
+  String(key, k_len[1])
 end
 
 function iter_value(it::Ptr{Void})
@@ -133,7 +133,7 @@ function iter_value(it::Ptr{Void})
   value = ccall( (:leveldb_iter_value, libleveldbjl), Ptr{UInt8},
     (Ptr{Void}, Ptr{Csize_t}),
     it, v_len)
-  pointer_to_array(value, (v_len[1],), false)
+  unsafe_wrap(Array{UInt8,1}, value, (v_len[1],), false)
 end
 
 function iter_seek(it::Ptr{Void}, key)
