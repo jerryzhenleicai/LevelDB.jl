@@ -44,18 +44,20 @@ db_put(db, "key2", "v2", 2)
 db_put(db, "key3", "v3", 2)
 
 d = Dict(
-  "key1" => "v1",
-  "key2" => "v2",
-  "key3" => "v3"
+         "key1" => "v1",
+         "key2" => "v2",
+         "key3" => "v3",
+         "key4" => "v4"
 )
 
 for (k, v) in d
   db_put(db, k, v, length(v))
 end
 
-#for (k, v) in db_range(db, "key1", "key3")
-#  @test String(v) == d[k]
-# end
+for (k, v) in db_range(db, "key1", "key5")
+    #print("\nKey ", k , " has a val of " , String(v))
+    @test String(v) == d[k]
+end
 # println("Pass iterator")
 
 
