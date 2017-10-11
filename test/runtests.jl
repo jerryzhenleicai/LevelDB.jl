@@ -53,9 +53,10 @@ for (k, v) in d
   db_put(db, k, v, length(v))
 end
 
-#for (k, v) in db_range(db, "key1", "key3")
-#  @test String(v) == d[k]
-# end
+for (k, v) in db_range(db, "key1", "key4")
+    print("Key ", k , " has a val of " , String(v))
+    @test String(v) == d[k]
+end
 # println("Pass iterator")
 
 

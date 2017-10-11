@@ -115,25 +115,26 @@ function create_iter(db::Ptr{Void}, options::Ptr{Void})
 end
 
 function iter_valid(it::Ptr{Void})
-  ccall( (:leveldb_iter_valid, libleveldbjl), UInt8,
-    (Ptr{Void},),
-    it) == 1
+    ccall( (:leveldb_iter_valid, libleveldbjl), UInt8, (Ptr{Void},),  it) == 1
 end
 
 function iter_key(it::Ptr{Void})
-  k_len = Csize_t[0]
-  key = ccall( (:leveldb_iter_key, libleveldbjl), Ptr{UInt8},
-    (Ptr{Void}, Ptr{Csize_t}),
-    it, k_len)
-  String(key, k_len[1])
+    k_len = Csize_t[0]
+    key = ccall( (:leveldb_iter_key, libleveldbjl), Ptr{UInt8},
+                (Ptr{Void}, Ptr{Csize_t}),  it, k_len)
+    k = unsafe_wrap(Array{UInt8,1},  key, k_len[1], false)
+    x = String(k)
+    #print(x)
+    x
 end
 
 function iter_value(it::Ptr{Void})
   v_len = Csize_t[0]
   value = ccall( (:leveldb_iter_value, libleveldbjl), Ptr{UInt8},
-    (Ptr{Void}, Ptr{Csize_t}),
-    it, v_len)
-  unsafe_wrap(Array{UInt8,1}, value, (v_len[1],), false)
+    (Ptr{Void}, Ptr{Csize_t}),   it, v_len)
+   v = unsafe_wrap(Array{UInt8,1}, value, (v_len[1],), false)
+   print("\n val ", v)
+   v
 end
 
 function iter_seek(it::Ptr{Void}, key)
@@ -179,14 +180,23 @@ function Base.start(range::Range)
 end
 
 function Base.done(range::Range, state=Union{})
-  if range.destroyed
-    return true
-  end
-  isdone = iter_valid(range.iter) ? iter_key(range.iter) > range.key_end : true
-  if isdone
-    range_close(range)
-  end
-  isdone
+    if range.destroyed
+        return true
+    end
+
+
+    #print("RANGE" , range)
+    print("\n, range end ", range.key_end)
+    key = iter_key(range.iter)
+
+    isdone = iter_valid(range.iter) ? key >= range.key_end : true
+
+    if isdone
+        range_close(range)
+    end
+
+    print(" --- is done ", isdone, "\n")
+    isdone
 end
 
 function Base.next(range::Range, state=Union{})
