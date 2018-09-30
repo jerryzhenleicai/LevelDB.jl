@@ -1,5 +1,5 @@
+using Test
 using LevelDB
-using Base.Test
 
 db = open_db("level.db", true)
 batch = create_write_batch()
