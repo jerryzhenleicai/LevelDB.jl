@@ -32,7 +32,7 @@ function open_db(file_path, create_if_missing)
                (Ptr{Nothing}, Ptr{UInt8}, Ptr{Ptr{UInt8}}) , options, file_path, err)
 
     if db == C_NULL
-        error(String(err[1]))
+        error(unsafe_string(err[1]))
     end
     return db
 end
@@ -49,7 +49,7 @@ function db_put(db, key, value, val_len)
           (Ptr{Nothing}, Ptr{Nothing}, Ptr{UInt8}, UInt, Ptr{UInt8}, UInt, Ptr{Ptr{UInt8}} ),
           db, options,key, length(key), value, val_len, err)
     if err[1] != C_NULL
-        error(String(err[1]))
+        error(unsafe_string(err[1]))
     end
 end
 
@@ -63,7 +63,7 @@ function db_get(db, key)
           (Ptr{Nothing}, Ptr{Nothing}, Ptr{UInt8}, UInt, Ptr{Csize_t},  Ptr{Ptr{UInt8}} ),
           db, options, key, length(key), val_len, err)
     if err[1] != C_NULL
-        error(String(err[1]))
+        error(unsafe_string(err[1]))
     else
         s = unsafe_wrap(Array{UInt8,1},value, (val_len[1],), own = true)
         s
@@ -77,7 +77,7 @@ function db_delete(db, key)
           (Ptr{Nothing}, Ptr{Nothing}, Ptr{UInt8}, UInt, Ptr{Ptr{UInt8}} ),
           db, options, key, length(key), err)
     if err[1] != C_NULL
-        error(String(err[1]))
+        error(unsafe_string(err[1]))
     end
 end
 
@@ -102,7 +102,7 @@ function write_batch(db, batch)
           (Ptr{Nothing}, Ptr{Nothing}, Ptr{Nothing},  Ptr{Ptr{UInt8}} ),
           db, options, batch, err)
     if err[1] != C_NULL
-        error(String(err[1])) */
+        error(unsafe_string(err[1]))
     end
 end
 
