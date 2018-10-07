@@ -138,6 +138,18 @@ function iter_value(it::Ptr{Nothing})
    v
 end
 
+function iter_seek_to_first(it::Ptr{Nothing})
+    ccall( (:leveldb_iter_seek_to_first, libleveldbjl), Nothing,
+           (Ptr{Nothing},),
+           it)
+end
+
+function iter_seek_to_last(it::Ptr{Nothing})
+    ccall( (:leveldb_iter_seek_to_last, libleveldbjl), Nothing,
+           (Ptr{Nothing},),
+           it)
+end
+
 function iter_seek(it::Ptr{Nothing}, key)
   ccall( (:leveldb_iter_seek, libleveldbjl), Nothing,
     (Ptr{Nothing}, Ptr{UInt8}, UInt),
@@ -150,6 +162,12 @@ function iter_next(it::Ptr{Nothing})
     it)
 end
 
+function iter_prev(it::Ptr{Nothing})
+  ccall( (:leveldb_iter_prev, libleveldbjl), Nothing,
+    (Ptr{Nothing},),
+    it)
+end
+
 mutable struct Range
   iter::Ptr{Nothing}
   options::Ptr{Nothing}
@@ -158,10 +176,28 @@ mutable struct Range
   destroyed::Bool
 end
 
-function db_range(db, key_start, key_end="\uffff")
-  options = ccall( (:leveldb_readoptions_create, libleveldbjl), Ptr{Nothing}, ())
+function readoptions_create()
+    ccall( (:leveldb_readoptions_create, libleveldbjl), Ptr{Nothing}, ())
+end
+
+function db_range(db, key_start, key_end)
+  options = readoptions_create()
   iter = create_iter(db, options)
   Range(iter, options, key_start, key_end, false)
+end
+
+function db_range(db; key_start = nothing, key_end = nothing)
+    options = readoptions_create()
+    iter = create_iter(db, options)
+    if key_start === nothing
+        iter_seek_to_first(iter)
+        key_start = iter_key(iter)
+    end
+    if key_end === nothing
+        iter_seek_to_last(iter)
+        key_end = iter_key(iter)
+    end
+    Range(iter, options, key_start, key_end, false)
 end
 
 function range_close(range::Range)
@@ -198,6 +234,14 @@ end
 
 function Base.iterate(range::Range)
     iter_seek(range.iter, range.key_start)
+    if isdone(range)
+        return nothing
+    else
+        k = iter_key(range.iter)
+        v = iter_value(range.iter)
+        iter_next(range.iter)
+        return ((k, v), Union{})
+    end
 end
 
 

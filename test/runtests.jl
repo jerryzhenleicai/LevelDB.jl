@@ -7,38 +7,40 @@ val = "value10"
 batch_put(batch, "key1", val, length(val))
 write_batch(db, batch)
 
-readback_value = String(db_get(db, "key1"))
+@testset "Access" begin
+    readback_value = String(db_get(db, "key1"))
 
-@test  readback_value == val
+    @test  readback_value == val
 
-println("String read back OK")
-
-
-db_delete(db, "key1")
-@test isempty(db_get(db, "key1")) == true
-println("Successfully deleted")
+    println("String read back OK")
 
 
-# Now write a Float64 array
+    db_delete(db, "key1")
+    @test isempty(db_get(db, "key1")) == true
 
-float_array = Float64[1.0, 2.0, 3.3, 4.4]
-
-key = "FloatKey"
-
-# each Float64 is 8 bytes
-db_put(db, key, pointer(float_array), length(float_array) * 8)
-
-readback_value = reinterpret(Float64,db_get(db, key))
-@test float_array == readback_value
-
-# assert the two arrays are in different memory block
-# by modifying the original and the read-back copy should be different from it
-
-float_array[1] = 100.0
-@test float_array != readback_value
-println("Floating point array read back OK")
+    println("Successfully deleted")
 
 
+    # Now write a Float64 array
+
+    float_array = Float64[1.0, 2.0, 3.3, 4.4]
+
+    key = "FloatKey"
+
+    # each Float64 is 8 bytes
+    db_put(db, key, pointer(float_array), length(float_array) * 8)
+
+    readback_value = reinterpret(Float64,db_get(db, key))
+    @test float_array == readback_value
+
+    # assert the two arrays are in different memory block
+    # by modifying the original and the read-back copy should be different from it
+
+    float_array[1] = 100.0
+    @test float_array != readback_value
+    println("Floating point array read back OK")
+    db_delete(db, "FloatKey")
+end
 
 db_put(db, "key2", "v2", 2)
 db_put(db, "key3", "v3", 2)
@@ -54,13 +56,32 @@ for (k, v) in d
   db_put(db, k, v, length(v))
 end
 
-for (k, v) in db_range(db, "key1", "key5")
-    #print("\nKey ", k , " has a val of " , String(v))
-    @test String(v) == d[k]
+@testset "Ranges" begin
+    for (k, v) in db_range(db, "key1", "key5")
+        @test String(v) == d[k]
+    end
+
+    for (k, v) in db_range(db)
+        @test String(v) == d[k]
+    end
+
+    for (k, v) in db_range(db, key_start = "key1")
+        @test String(v) == d[k]
+    end
+
+    for (k, v) in db_range(db, key_end = "key5")
+        @test String(v) == d[k]
+    end
+
 end
-# println("Pass iterator")
+
+@testset "Errors" begin
+    @test_throws ErrorException open_db("level.db", false)
+    @test_throws ErrorException open_db("level.db.2", false)
+    @test_broken !ispath("level.db.2")
+end
 
 
 close_db(db)
-println("All Tests Passed.")
 run(`rm -rf level.db`)
+run(`rm -rf level.db.2`)
