@@ -1,9 +1,9 @@
 using BinDeps
-using Compat
+using Libdl
 
 @BinDeps.setup
 
-version = "1.18"
+version = "1.20"
 url = "https://github.com/google/leveldb/archive/v$(version).tar.gz"
 
 libleveldbjl = library_dependency("libleveldbjl")
@@ -22,8 +22,8 @@ provides(BuildProcess,
         @build_steps begin
             ChangeDirectory(leveldbsrcdir)
             FileRule(leveldblibfile, @build_steps begin
-                `make`
-                `cp libleveldb.$(Libdl.dlext) $(leveldblibfile)`
+                     `make`
+                     `cp out-shared/libleveldb.$(Libdl.dlext).$(version) $(leveldblibfile)`
             end)
         end
     end), libleveldbjl, os = :Unix)
