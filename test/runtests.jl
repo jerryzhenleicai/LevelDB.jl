@@ -1,87 +1,52 @@
 using Test
 using LevelDB
 
-db = open_db("level.db", true)
-batch = create_write_batch()
-val = "value10"
-batch_put(batch, "key1", val, length(val))
-write_batch(db, batch)
-
-@testset "Access" begin
-    readback_value = String(db_get(db, "key1"))
-
-    @test  readback_value == val
-
-    println("String read back OK")
+include("test_impl.jl")
 
 
-    db_delete(db, "key1")
-    @test isempty(db_get(db, "key1")) == true
+@testset "DB basic operations" begin
+    db = LevelDB.DB("level.db", create_if_missing = true)
+    @test isopen(db)
+    close(db)
+    @test !isopen(db)
 
-    println("Successfully deleted")
 
+    db = LevelDB.DB("level.db", create_if_missing = true)
 
-    # Now write a Float64 array
-
-    float_array = Float64[1.0, 2.0, 3.3, 4.4]
-
-    key = "FloatKey"
-
-    # each Float64 is 8 bytes
-    db_put(db, key, pointer(float_array), length(float_array) * 8)
-
-    readback_value = reinterpret(Float64,db_get(db, key))
-    @test float_array == readback_value
-
-    # assert the two arrays are in different memory block
-    # by modifying the original and the read-back copy should be different from it
-
-    float_array[1] = 100.0
-    @test float_array != readback_value
-    println("Floating point array read back OK")
-    db_delete(db, "FloatKey")
+    db[[0x00]] = [0x01]
+    @test db[[0x00]] == [0x01]
+    delete!(db, [0x00])
+    @test_throws KeyError db[[0x00]]
+    close(db)
 end
 
-db_put(db, "key2", "v2", 2)
-db_put(db, "key3", "v3", 2)
+@testset "DB batching and iteration" begin
+    db = LevelDB.DB("level.db.2", create_if_missing = true)
+    d = Dict([0xa] => [0x1],
+             [0xb] => [0x2],
+             [0xc] => [0x3],
+             [0xd] => [0x4],)
 
-d = Dict(
-         "key1" => "v1",
-         "key2" => "v2",
-         "key3" => "v3",
-         "key4" => "v4"
-)
+    db[keys(d)] = values(d)
 
-for (k, v) in d
-  db_put(db, k, v, length(v))
-end
+    @test db[[0xa]] == [0x1]
+    @test db[[0xb]] == [0x2]
+    @test db[[0xc]] == [0x3]
+    @test db[[0xd]] == [0x4]
 
-@testset "Ranges" begin
-    for (k, v) in db_range(db, "key1", "key5")
-        @test String(v) == d[k]
+    for (k, v) in db
+        dv = d[k]
+        @test v == dv
     end
-
-    for (k, v) in db_range(db)
-        @test String(v) == d[k]
-    end
-
-    for (k, v) in db_range(db, key_start = "key1")
-        @test String(v) == d[k]
-    end
-
-    for (k, v) in db_range(db, key_end = "key5")
-        @test String(v) == d[k]
-    end
-
-end
-
-@testset "Errors" begin
-    @test_throws ErrorException open_db("level.db", false)
-    @test_throws ErrorException open_db("level.db.2", false)
-    @test_broken !ispath("level.db.2")
+    close(db)
 end
 
 
-close_db(db)
+
+@testset "DB Errors" begin
+    @test_throws ErrorException LevelDB.DB("level.db.3", create_if_missing = false)
+end
+
 run(`rm -rf level.db`)
 run(`rm -rf level.db.2`)
+run(`rm -rf level.db.3`)
