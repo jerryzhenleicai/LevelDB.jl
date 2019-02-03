@@ -15,7 +15,6 @@ julia:
 matrix:
   allow_failures:
     - julia: nightly
-    - os: osx
 
 after_success:
   - julia -e 'cd(Pkg.dir("LevelDB")); Pkg.add("Coverage"); using Coverage; Codecov.submit(process_folder())'
