@@ -33,7 +33,7 @@ mutable struct DB
     end
 end
 function Base.show(io::IO, db::DB)
-    println(io, "LevelDB: ", db.dir)
+    print(io, "LevelDB: ", db.dir)
 end
 
 Base.isopen(db::DB) = db.handle != C_NULL
