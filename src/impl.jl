@@ -165,9 +165,11 @@ function readoptions_create()
 end
 
 function db_range(db, key_start, key_end)
-  options = readoptions_create()
-  iter = create_iter(db, options)
-  Range(iter, options, key_start, key_end, false)
+    options = readoptions_create()
+    iter = create_iter(db, options)
+    res = Range(iter, options, key_start, key_end, false)
+    finalizer(range_close, res)
+    return res
 end
 
 function db_range(db; key_start = nothing, key_end = nothing)
