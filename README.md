@@ -1,83 +1,87 @@
 # LevelDB
 
-LevelDB is Google's open source on-disk key-value storage library that provides an ordered mapping from string keys to binary values. In many applications where only key based accesses are needed, it tends to be a faster alternative than databases.  LevelDB was written in C++ with a C calling API included. This module provides a Julia interface to LevelDB using Julia's  ccall mechanism.
+`LevelDB` is Google's open source on-disk key-value storage library that
+provides an ordered mapping from string keys to binary values. In many
+applications where only key based accesses are needed, it tends to be a faster
+alternative than databases. LevelDB was written in C++ with a C calling API
+included. This module provides a Julia interface to LevelDB using Julia's
+`ccall` mechanism.
 
 ## Install LevelDB
 
-You can build LevelDB from its source code at https://github.com/google/leveldb. Please install the final dynamic library into a system directory such as /usr/lib or make sure libleveldb.so is in one of your LD_LIBRARY_PATH directories.
-
+You can build `LevelDB` from its source code at
+https://github.com/google/leveldb. Please install the final dynamic library into
+a system directory such as /usr/lib or make sure `libleveldb.so` is in one of
+your `LD_LIBRARY_PATH` directories. If `libleveldb.so` is not installed, Julia
+will try to download and build it automatically.
 
 ## Run Testing Code
 
-```
-julia test/runtests.jl
+```julia
+(v1.1) pkg> test LevelDB
 ```
 This will exercise batched and non-batched writes and reads for string and float array values.
 
 ## Create/Open/Close a LevelDB database
 
-```
-function open_db(file_path, create_if_missing)
+```julia
+julia> db = LevelDB.DB(file_path, create_if_missing)
 ```
 
-Here file_path is the full path to a directory that hosts a LevelDB database, create_if_missing is a boolean flag when true the database will be created if it does not exist.  The return value is a database object for passing to read/write calls.
+Here file_path is the full path to a directory that hosts a `LevelDB` database,
+`create_if_missing` is a boolean flag when true the database will be created if
+it does not exist. The return value is a database object for passing to
+read/write calls.
 
+```julia
+julia> close(db)
 ```
-function close_db(db)
-```
-Close a database, db is the object returned from a open_db call.
+
+Close a database, `db` is the object returned from a `LevelDB.DB` call. A
+directory can only be opened by a single `LevelDB.DB` at a time.
 
 
 ## Read and Write Operations
 
+```julia
+julia> db[key] = value
 ```
-function db_put(db, key, value, val_len)
-```
-key is a string, value is a pointer to a byte array, val_len is its length
+`key` and `value` are `Array{UInt8}`. 
 
-```
-function db_get(db, key)
-```
-
-Return value is a UInt8 array, one can use the reinterpret Julia function to cast it into the right array type (see test code).
-
-
-```
-function db_delete(db, key)
+```julia
+julia> db[key]
 ```
 
+Return value is an `Array{UInt8}`, one can use the `reinterpret` function to
+cast it into the right array type (see test code).
+
+```julia
+julia> delete!(db, key)
+```
+
+Delete a key from `db`.
 
 ## Batched Write
 
-LevelDB supports grouping a number of put operations into a WriteBatch, the batch will either succeed as a whole or fail altogether, behaving like an atomic update.
+`LevelDB` supports grouping a number of put operations into a write batch, the
+batch will either succeed as a whole or fail altogether, behaving like an atomic
+update.
 
-```
-function create_write_batch()
-```
-
-Create a WriteBatch object.
-
-```
-function batch_put(batch, key, value, val_len)
+```julia
+julia> db[keys] = values
 ```
 
-Add one key value Put operation into a WriteBatch
+`keys` and `values` must behave like iterators returning `Array{UInt8}`. Creates
+a write batch internally which is then commited to `db`.
 
-```
-function write_batch(db, batch)
-```
+## Iterate
 
-Commit the WriteBatch into the database as an atomic write.
-
-## General for loop
-
+```julia
+julia> for (key, value) in db
+           #do something with the key value pair
+       end
 ```
-range = db_range(db, "key_start", "key_end")
-for (k, v) in range
-  #do something
-end
-```
-Note: if you `break` the loop, you had to manually close the range by `range_close(range)`.
+Iterate over all `key => value` pairs in a `LevelDB.DB`.
 
 ## Author
 
