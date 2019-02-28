@@ -83,6 +83,7 @@ julia> for (key, value) in db
 ```
 Iterate over all `key => value` pairs in a `LevelDB.DB`.
 
-## Author
+## Authors
 
-Jerry Zhenlei Cai ( jpenguin@gmail dot com )
+- Jerry Zhenlei Cai ( jpenguin at gmail dot com )
+- Guido Kraemer
