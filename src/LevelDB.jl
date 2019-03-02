@@ -58,8 +58,7 @@ function DB(
     if err_ptr[] != C_NULL
         err_ptr[] |> unsafe_string |> error
 
-        leveldb_free(err_ptr)
-        # leveldb_close(handle)
+        leveldb_free(err_ptr[])
         leveldb_options_destroy(options)
         leveldb_writeoptions_destroy(write_options)
         leveldb_readoptions_destroy(read_options)
@@ -242,8 +241,7 @@ mutable struct Iterator
 end
 
 function Iterator(db::DB)
-    it = Iterator(leveldb_create_iterator(db.handle, db.read_options))
-    return it
+    Iterator(leveldb_create_iterator(db.handle, db.read_options))
 end
 
 Base.IteratorEltype(::DB) = Vector{UInt8}
