@@ -1,7 +1,6 @@
 using Test
 using LevelDB
 
-# include("test_impl.jl")
 run(`rm -rf level.db`)
 run(`rm -rf level.db.2`)
 run(`rm -rf level.db.3`)
