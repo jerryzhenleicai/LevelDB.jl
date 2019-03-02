@@ -52,7 +52,6 @@ function DB(
     @assert  read_options != C_NULL
 
     db = DB(dir, handle, options, write_options, read_options)
-    # finalizer(close, db)
 
     return db
 end
@@ -75,7 +74,6 @@ function _leveldb_options_create(
     # leveldb_options_set_error_if_exists
     # leveldb_options_set_create_if_missing
     # leveldb_options_set_write_buffer_size
-    # leveldb_options_set_filter_policy
     # leveldb_options_set_filter_policy
 
     leveldb_options_set_error_if_exists(o, error_if_exists)
@@ -108,27 +106,20 @@ end
 
 Base.isopen(db::DB) = db.handle != C_NULL
 
+macro destroy_if_not_null(f, ptr)
+    esc(quote
+          if $ptr != C_NULL
+          $f($ptr)
+          $ptr = C_NULL
+        end
+    end)
+end
+
 function Base.close(db::DB)
-    if db.handle != C_NULL
-        # leveldb_destroy_db DELETES the data base from disk!!!
-        leveldb_close(db.handle)
-        db.handle = C_NULL
-    end
-
-    if db.options != C_NULL
-        leveldb_options_destroy(db.options)
-        db.options = C_NULL
-    end
-
-    if db.write_options != C_NULL
-        leveldb_writeoptions_destroy(db.write_options)
-        db.write_options = C_NULL
-    end
-
-    if db.read_options != C_NULL
-        leveldb_readoptions_destroy(db.read_options)
-        db.read_options = C_NULL
-    end
+    @destroy_if_not_null leveldb_close                db.handle
+    @destroy_if_not_null leveldb_options_destroy      db.options
+    @destroy_if_not_null leveldb_writeoptions_destroy db.write_options
+    @destroy_if_not_null leveldb_readoptions_destroy  db.read_options
 end
 
 function Base.show(io::IO, db::DB)
@@ -233,7 +224,6 @@ end
 
 function Iterator(db::DB)
     it = Iterator(leveldb_create_iterator(db.handle, db.read_options))
-    # finalizer(close, it)
     return it
 end
 
@@ -243,12 +233,7 @@ Base.IteratorSize(::DB) = SizeUnknown()
 Base.seekstart(it::Iterator) = leveldb_iter_seek_to_first(it.handle)
 # Base.seekend(it::Iterator) = leveldb_iter_seek_to_last(it.handle)
 
-function close(it::Iterator)
-    if it.handle != C_NULL
-        leveldb_iter_destroy(it.handle)
-        it.handle = C_NULL
-    end
-end
+Base.close(it::Iterator) = @destroy_if_not_null leveldb_iter_destroy it.handle
 
 isdone(it::Iterator) = leveldb_iter_valid(it.handle) > 0x00
 

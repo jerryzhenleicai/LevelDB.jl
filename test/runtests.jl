@@ -20,6 +20,10 @@ run(`rm -rf level.db.3`)
     delete!(db, [0x00])
     @test_throws KeyError db[[0x00]]
     close(db)
+    @test db.handle        == C_NULL
+    @test db.options       == C_NULL
+    @test db.write_options == C_NULL
+    @test db.read_options  == C_NULL
 end
 
 @testset "DB batching and iteration" begin
@@ -41,9 +45,17 @@ end
         @test v == dv
     end
     close(db)
+    @test db.handle        == C_NULL
+    @test db.options       == C_NULL
+    @test db.write_options == C_NULL
+    @test db.read_options  == C_NULL
 
     # nothing should happen here
     close(db)
+    @test db.handle        == C_NULL
+    @test db.options       == C_NULL
+    @test db.write_options == C_NULL
+    @test db.read_options  == C_NULL
 end
 
 
