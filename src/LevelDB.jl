@@ -22,10 +22,29 @@ mutable struct DB
     read_options  :: Ptr{leveldb_readoptions_t}
 end
 
+"""
+    LevelDB.DB(file_path; create_if_missing = false, error_if_exists = false)::LevelDB.DB
+
+Opens or creates a `LevelDB` database at `file_path`.
+
+# Parameters
+- `file_path::String`: The full path to a directory that hosts a `LevelDB` database.
+- `create_if_missing::Bool`: When `true` the database will be created if it does not exist.
+- `error_if_exists::Bool`: When `true` an error will be thrown if the database already exists.
+
+# Example
+    db = LevelDB.DB(mktemp())
+    db[[0x01]] = [0x0a]
+    db[[0x02]] = [0x0b]
+
+    db[[0x01]] # returns [0x0a]
+
+    close(db)
+"""
 function DB(
-        dir           :: String;
-        create_if_missing = false,
-        error_if_exists = false
+        dir               :: String;
+        create_if_missing :: Bool = false,
+        error_if_exists   :: Bool = false
     )
     options = _leveldb_options_create(create_if_missing = create_if_missing,
                                       error_if_exists   = error_if_exists)

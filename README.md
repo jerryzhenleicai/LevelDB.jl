@@ -25,13 +25,14 @@ This will exercise batched and non-batched writes and reads for string and float
 ## Create/Open/Close a LevelDB database
 
 ```julia
-julia> db = LevelDB.DB(file_path, create_if_missing)
+julia> db = LevelDB.DB(file_path; create_if_missing = false, error_if_exists = false)
 ```
 
-Here file_path is the full path to a directory that hosts a `LevelDB` database,
+Here `file_path` is the full path to a directory that hosts a `LevelDB` database.
 `create_if_missing` is a boolean flag when true the database will be created if
-it does not exist. The return value is a database object for passing to
-read/write calls.
+it does not exist. `error_if_exists` is a boolean flag when true an error will
+be thrown if the database already exists. The return value is a database object
+for passing to read/write calls.
 
 ```julia
 julia> close(db)
