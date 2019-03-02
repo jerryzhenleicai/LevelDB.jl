@@ -87,3 +87,8 @@ Iterate over all `key => value` pairs in a `LevelDB.DB`.
 
 - Jerry Zhenlei Cai ( jpenguin at gmail dot com )
 - Guido Kraemer
+
+additional contributions by
+
+- `@huwenshuo`
+- `@tmlbl`
