@@ -6,18 +6,18 @@ using Libdl
 version = "1.20"
 url = "https://github.com/google/leveldb/archive/v$(version).tar.gz"
 
-libleveldbjl = library_dependency("libleveldbjl")
+libleveldb = library_dependency("libleveldb")
 
-provides(Sources, URI(url), libleveldbjl, unpacked_dir="leveldb-$(version)")
+provides(Sources, URI(url), libleveldb, unpacked_dir="leveldb-$(version)")
 
-leveldbbuilddir = BinDeps.builddir(libleveldbjl)
-leveldbsrcdir = joinpath(BinDeps.depsdir(libleveldbjl),"src", "leveldb-$version")
-leveldblibdir = BinDeps.libdir(libleveldbjl)
-leveldblibfile = joinpath(leveldblibdir,libleveldbjl.name*".$(Libdl.dlext)")
+leveldbbuilddir = BinDeps.builddir(libleveldb)
+leveldbsrcdir = joinpath(BinDeps.depsdir(libleveldb),"src", "leveldb-$version")
+leveldblibdir = BinDeps.libdir(libleveldb)
+leveldblibfile = joinpath(leveldblibdir,libleveldb.name*".$(Libdl.dlext)")
 
 provides(BuildProcess,
     (@build_steps begin
-        GetSources(libleveldbjl)
+        GetSources(libleveldb)
         CreateDirectory(leveldblibdir)
         @build_steps begin
             ChangeDirectory(leveldbsrcdir)
@@ -26,6 +26,6 @@ provides(BuildProcess,
                      `cp out-shared/libleveldb.$(Libdl.dlext).$(version) $(leveldblibfile)`
             end)
         end
-    end), libleveldbjl, os = :Unix)
+    end), libleveldb, os = :Unix)
 
-@BinDeps.install Dict(:libleveldbjl =>:libleveldbjl)
+@BinDeps.install Dict(:libleveldb => :libleveldb)
