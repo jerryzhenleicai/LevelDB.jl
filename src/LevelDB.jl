@@ -12,6 +12,33 @@ end
 include("libleveldb_common.jl")
 include("libleveldb_api.jl")
 
+macro destroy_if_not_null(f, ptr)
+    esc(quote
+          if $ptr != C_NULL
+          $f($ptr)
+          $ptr = C_NULL
+        end
+    end)
+end
+
+macro check_err_ref(f, g = :())
+    esc(quote
+          err_ref = Ref{Cstring}(C_NULL)
+
+          $f
+
+          err_ptr = err_ref[]
+          if err_ptr != C_NULL
+              err_msg = err_ptr |> unsafe_string
+              leveldb_free(convert(Ptr{Nothing}, err_ptr))
+
+              $g
+
+              error(err_msg)
+          end
+    end)
+end
+
 # This needs to be mutable, because handle == C_NULL is used to avoid double
 # free
 mutable struct DB
@@ -51,19 +78,10 @@ function DB(
     write_options = _leveldb_writeoptions_create()
     read_options  = _leveldb_readoptions_create()
 
-    err_ptr = Ref{Cstring}(C_NULL)
-
-    handle = leveldb_open(options, dir, err_ptr)
-
-    if err_ptr[] != C_NULL
-        err_msg = err_ptr[] |> unsafe_string
-
-        leveldb_free(err_ptr[])
+    @check_err_ref handle = leveldb_open(options, dir, err_ref) begin
         leveldb_options_destroy(options)
         leveldb_writeoptions_destroy(write_options)
         leveldb_readoptions_destroy(read_options)
-
-        error(err_msg)
     end
 
     @assert        handle != C_NULL
@@ -126,15 +144,6 @@ end
 
 Base.isopen(db::DB) = db.handle != C_NULL
 
-macro destroy_if_not_null(f, ptr)
-    esc(quote
-          if $ptr != C_NULL
-          $f($ptr)
-          $ptr = C_NULL
-        end
-    end)
-end
-
 function Base.close(db::DB)
     @destroy_if_not_null leveldb_close                db.handle
     @destroy_if_not_null leveldb_options_destroy      db.options
@@ -148,16 +157,9 @@ end
 
 function Base.getindex(db::DB, i::Vector{UInt8})
     val_size = Ref{Csize_t}(0)
-    err_ptr = Ptr{Cstring}(0)
-    res_ptr = leveldb_get(db.handle, db.read_options,
-                          pointer(i), length(i),
-                          val_size, err_ptr)
-
-    if err_ptr != C_NULL
-        err_msg = err_ptr |> unsafe_load |> unsafe_string
-        leveldb_free(err_ptr)
-        error(err_msg)
-    end
+    @check_err_ref res_ptr = leveldb_get(db.handle, db.read_options,
+                                         pointer(i), length(i),
+                                         val_size, err_ref)
 
     size = val_size[]
     if size == 0
@@ -174,35 +176,17 @@ function Base.getindex(db::DB, i::Vector{UInt8})
 end
 
 function Base.setindex!(db::DB, v::Vector{UInt8}, i::Vector{UInt8})
-    err_ptr = Ptr{Cstring}(0)
-
-    leveldb_put(db.handle, db.write_options,
-                pointer(i), length(i),
-                pointer(v), length(v),
-                err_ptr)
-
-    if err_ptr != C_NULL
-        err_msg = err_ptr |> unsafe_load |> unsafe_string
-        leveldb_free(err_ptr)
-        error(err_msg)
-    end
-
+    @check_err_ref leveldb_put(db.handle, db.write_options,
+                               pointer(i), length(i),
+                               pointer(v), length(v),
+                               err_ref)
     return v
 end
 
 function Base.delete!(db::DB, i::Vector{UInt8})
-    err_ptr = Ptr{Cstring}(0)
-
-    leveldb_delete(db.handle, db.write_options,
-                   pointer(i), length(i),
-                   err_ptr)
-
-    if err_ptr != C_NULL
-        err_msg = err_ptr |> unsafe_load |> unsafe_string
-        leveldb_free(err_ptr)
-        error(err_msg)
-    end
-
+    @check_err_ref leveldb_delete(db.handle, db.write_options,
+                                  pointer(i), length(i),
+                                  err_ref)
     return db
 end
 
@@ -223,14 +207,8 @@ function Base.setindex!(db::DB, v, k)
                                pointer(vv), length(vv))
     end
 
-    err_ptr = Ptr{Cstring}(0)
-
-    leveldb_write(db.handle, db.write_options, batch, err_ptr)
-
-    if err_ptr != C_NULL
-        err_msg = err_ptr |> unsafe_load |> unsafe_string
-        leveldb_free(err_ptr)
-        error(err_msg)
+    @check_err_ref leveldb_write(db.handle, db.write_options, batch, err_ref) begin
+        leveldb_writebatch_destroy(batch)
     end
 
     leveldb_writebatch_destroy(batch)
