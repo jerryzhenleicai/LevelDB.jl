@@ -56,12 +56,14 @@ function DB(
     handle = leveldb_open(options, dir, err_ptr)
 
     if err_ptr[] != C_NULL
-        err_ptr[] |> unsafe_string |> error
+        err_msg = err_ptr[] |> unsafe_string
 
         leveldb_free(err_ptr[])
         leveldb_options_destroy(options)
         leveldb_writeoptions_destroy(write_options)
         leveldb_readoptions_destroy(read_options)
+
+        error(err_msg)
     end
 
     @assert        handle != C_NULL
