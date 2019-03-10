@@ -232,17 +232,23 @@ Base.seekstart(it::Iterator) = leveldb_iter_seek_to_first(it.handle)
 
 Base.close(it::Iterator) = @destroy_if_not_null leveldb_iter_destroy it.handle
 
-isdone(it::Iterator) = leveldb_iter_valid(it.handle) > 0x00
+is_valid(it::Iterator) = it.handle != C_NULL && leveldb_iter_valid(it.handle) > 0x00
 
 function get_key_val(it::Iterator)
 
     key_size = Ref{Csize_t}(0)
     key_ptr = leveldb_iter_key(it.handle, key_size)
-    key = unsafe_wrap(Vector{UInt8}, key_ptr, (key_size[], ), own = true)
+    key = unsafe_wrap(Vector{UInt8},
+                      convert(Ptr{UInt8}, key_ptr),
+                      (key_size[], ),
+                      own = true)
 
     val_size = Ref{Csize_t}(0)
     val_ptr = leveldb_iter_value(it.handle, val_size)
-    val = unsafe_wrap(Vector{UInt8}, val_ptr, (val_size[], ), own = true)
+    val = unsafe_wrap(Vector{UInt8},
+                      convert(Ptr{UInt8}, val_ptr),
+                      (val_size[], ),
+                      own = true)
 
     return key => val
 end
@@ -252,23 +258,24 @@ function Base.iterate(db::DB)
     it = Iterator(db)
     seekstart(it)
 
-    if isdone(it)
-        return nothing
-    else
+    if is_valid(it)
         kv = get_key_val(it)
         leveldb_iter_next(it.handle)
         return  kv, it
+    else
+        close(it)
+        return nothing
     end
 end
 
 function Base.iterate(db::DB, it::Iterator)
-    if isdone(it)
-        close(it)
-        return nothing
-    else
+    if is_valid(it)
         kv = get_key_val(it)
         leveldb_iter_next(it.handle)
-        kv, it
+        return kv, it
+    else
+        close(it)
+        return nothing
     end
 end
 
