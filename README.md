@@ -1,4 +1,5 @@
 # LevelDB
+[![Build Status](https://api.travis-ci.org/jerryzhenleicai/LevelDB.jl.svg?branch=master)](https://api.travis-ci.org/jerryzhenleicai/LevelDB.jl)
 
 `LevelDB` is Google's open source on-disk key-value storage library that
 provides an ordered mapping from string keys to binary values. In many
