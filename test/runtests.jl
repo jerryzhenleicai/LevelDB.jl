@@ -31,16 +31,18 @@ end
 @testset "DB batching and iteration" begin
     db = LevelDB.DB("level.db.2", create_if_missing = true)
     d = Dict([0xa] => [0x1],
-             [0xb] => [0x2],
-             [0xc] => [0x3],
-             [0xd] => [0x4],)
+             [0xb, 0xb] => [0x2],
+             [0xc, 0xc] => [0x3],
+             [0xd] => [0x4],
+             [0xe] => [0x5])
 
     db[keys(d)] = values(d)
 
     @test db[[0xa]] == [0x1]
-    @test db[[0xb]] == [0x2]
-    @test db[[0xc]] == [0x3]
+    @test db[[0xb, 0xb]] == [0x2]
+    @test db[[0xc, 0xc]] == [0x3]
     @test db[[0xd]] == [0x4]
+    @test db[[0xe]] == [0x5]
 
     function size_of(db)
         i = 0
@@ -49,7 +51,14 @@ end
         end
         i
     end
-    @test size_of(db) == 4
+    @test size_of(db) == 5
+
+    d2 = Dict{Vector{UInt8}, Vector{UInt8}}()
+    for (k, v) in db
+        d2[k] = v
+    end
+    @test d == d2
+
     for (k, v) in db
         delete!(db, k)
     end
