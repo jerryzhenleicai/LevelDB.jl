@@ -236,19 +236,21 @@ is_valid(it::Iterator) = it.handle != C_NULL && leveldb_iter_valid(it.handle) > 
 
 function get_key_val(it::Iterator)
 
+    # key
     key_size = Ref{Csize_t}(0)
     key_ptr = leveldb_iter_key(it.handle, key_size)
-    key = unsafe_wrap(Vector{UInt8},
-                      convert(Ptr{UInt8}, key_ptr),
-                      (key_size[], ),
-                      own = true)
 
+    key_size_val = key_size[]
+    key = Vector{UInt8}(undef, key_size_val)
+    unsafe_copyto!(pointer(key), convert(Ptr{UInt8}, key_ptr), key_size_val)
+
+    # value
     val_size = Ref{Csize_t}(0)
     val_ptr = leveldb_iter_value(it.handle, val_size)
-    val = unsafe_wrap(Vector{UInt8},
-                      convert(Ptr{UInt8}, val_ptr),
-                      (val_size[], ),
-                      own = true)
+
+    val_size_val = val_size[]
+    val = Vector{UInt8}(undef, val_size_val)
+    unsafe_copyto!(pointer(val), convert(Ptr{UInt8}, val_ptr), val_size_val)
 
     return key => val
 end
