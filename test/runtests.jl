@@ -84,6 +84,49 @@ end
     @test_throws ErrorException LevelDB.DB("level.db.3")
 end
 
+
+@testset "DB key range iterator" begin
+    db = LevelDB.DB("level.db", create_if_missing = true)
+    d = Dict([0xa] => [0x1],
+             [0xb, 0xb] => [0x2],
+             [0xc, 0xc] => [0x3],
+             [0xd] => [0x4],
+             [0xe] => [0x5],
+             )
+
+    db[keys(d)] = values(d)
+    n = 0
+    # Test a range iterator that begins with the second item in DB
+    iter = LevelDB.db_range_iterator(db, [0xb, 0xb], [0xd])
+    for (k, v) in iter
+        if n == 0
+            @test v == [0x2]
+        elseif n == 1
+            @test v ==  [0x3]
+        elseif n == 2
+            @test v ==  [0x4]
+        end
+        n +=1
+    end
+    @test n == 3 # assert the iterator stopped at key 0xd
+
+    # Test a range iterator that begins with a non-existing  item in DB
+    n = 0
+    iter = LevelDB.db_range_iterator(db, [0xb, 0xa], [0xc, 0xd])
+    for (k, v) in iter
+        if n == 0
+            @test v == [0x2]
+        elseif n == 1
+            @test v ==  [0x3]
+        end
+        n +=1
+    end
+    @test n == 2  # assert the iterator stopped at key 0xc 0xc
+
+    close(db)
+
+end
+
 run(`rm -rf level.db`)
 run(`rm -rf level.db.2`)
 run(`rm -rf level.db.3`)

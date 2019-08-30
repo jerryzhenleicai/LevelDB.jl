@@ -49,7 +49,7 @@ directory can only be opened by a single `LevelDB.DB` at a time.
 ```julia
 julia> db[key] = value
 ```
-`key` and `value` are `Array{UInt8}`. 
+`key` and `value` are `Array{UInt8}`.
 
 ```julia
 julia> db[key]
@@ -85,6 +85,15 @@ julia> for (key, value) in db
        end
 ```
 Iterate over all `key => value` pairs in a `LevelDB.DB`.
+
+
+```julia
+julia> for (key, value) in db_range_iterator(db, key1, key2)
+           #do something with the key value pair
+       end
+```
+Iterate over a range between key1 and key2 (inclusive)
+
 
 ## Authors
 
