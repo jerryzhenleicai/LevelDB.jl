@@ -295,6 +295,21 @@ mutable struct RangeIterator <: AbstractIterator
 end
 
 
+"""
+    LevelDB.RangeView(db::LevelDB.DB, key_start::Vector{UInt8}, key_end::Vector{UInt8})::LevelDB.RangeView
+
+Iterates over a subset of the data base
+
+# Parameters
+- `db::LevelDB.DB`: A `LevelDB.DB` object to iterate over.
+- `key_start::Vector{UInt8}`: Iterate from here.
+- `key_end::Vector{UInt8}`: Iterate until here.
+
+# Example
+    for (key, value) in LevelDB.RangeView(db, [0x01], [0x05])
+        # do something with the key and value
+    end
+"""
 mutable struct RangeView
     db :: DB
     key_start::Vector{UInt8}
