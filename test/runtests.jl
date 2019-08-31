@@ -97,7 +97,7 @@ end
     db[keys(d)] = values(d)
     n = 0
     # Test a range iterator that begins with the second item in DB
-    iter = LevelDB.db_range_iterator(db, [0xb, 0xb], [0xd])
+    iter = LevelDB.RangeView(db, [0xb, 0xb], [0xd])
     for (k, v) in iter
         if n == 0
             @test v == [0x2]
@@ -112,7 +112,7 @@ end
 
     # Test a range iterator that begins with a non-existing  item in DB
     n = 0
-    iter = LevelDB.db_range_iterator(db, [0xb, 0xa], [0xc, 0xd])
+    iter = LevelDB.RangeView(db, [0xb, 0xa], [0xc, 0xd])
     for (k, v) in iter
         if n == 0
             @test v == [0x2]

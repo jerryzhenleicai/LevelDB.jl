@@ -295,23 +295,19 @@ mutable struct RangeIterator <: AbstractIterator
 end
 
 
-mutable struct DBRangeView
+mutable struct RangeView
     db :: DB
     key_start::Vector{UInt8}
     key_end::Vector{UInt8}
 end
 
-Base.IteratorEltype(::DBRangeView) = Vector{UInt8}
-Base.IteratorSize(::DBRangeView) = SizeUnknown()
+Base.IteratorEltype(::RangeView) = Vector{UInt8}
+Base.IteratorSize(::RangeView) = SizeUnknown()
 
 
 is_valid(it::RangeIterator) = it.handle != C_NULL && leveldb_iter_valid(it.handle) > 0x00
 
-function db_range_iterator(db::DB, key_start::Vector{UInt8}, key_end::Vector{UInt8})
-    DBRangeView(db, key_start, key_end)
-end
-
-function Base.iterate(view::DBRangeView)
+function Base.iterate(view::RangeView)
     it = RangeIterator(
                        leveldb_create_iterator(view.db.handle, view.db.read_options),
                        view.key_start, view.key_end)
@@ -328,7 +324,7 @@ function Base.iterate(view::DBRangeView)
 end
 
 
-function Base.iterate(view::DBRangeView, it::RangeIterator)
+function Base.iterate(view::RangeView, it::RangeIterator)
     if is_valid(it)
         # key is past the range?
         kv = get_key_val(it)
