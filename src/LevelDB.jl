@@ -216,9 +216,12 @@ end
 
 # This needs to be mutable, because handle == C_NULL is used to avoid double
 # free
-mutable struct Iterator
+abstract type AbstractIterator end
+
+mutable struct Iterator <: AbstractIterator
     handle :: Ptr{leveldb_iterator_t}
 end
+
 
 function Iterator(db::DB)
     Iterator(leveldb_create_iterator(db.handle, db.read_options))
@@ -230,11 +233,11 @@ Base.IteratorSize(::DB) = SizeUnknown()
 Base.seekstart(it::Iterator) = leveldb_iter_seek_to_first(it.handle)
 # Base.seekend(it::Iterator) = leveldb_iter_seek_to_last(it.handle)
 
-Base.close(it::Iterator) = @destroy_if_not_null leveldb_iter_destroy it.handle
+Base.close(it::AbstractIterator) = @destroy_if_not_null leveldb_iter_destroy it.handle
 
-is_valid(it::Iterator) = it.handle != C_NULL && leveldb_iter_valid(it.handle) > 0x00
+is_valid(it::AbstractIterator) = it.handle != C_NULL && leveldb_iter_valid(it.handle) > 0x00
 
-function get_key_val(it::Iterator)
+function get_key_val(it::AbstractIterator)
 
     # key
     key_size = Ref{Csize_t}(0)
@@ -280,5 +283,62 @@ function Base.iterate(db::DB, it::Iterator)
         return nothing
     end
 end
+
+
+####################################################
+# iterator that iterates over a range of keys of the DB
+###
+mutable struct RangeIterator <: AbstractIterator
+    handle :: Ptr{leveldb_iterator_t}
+    key_start::Vector{UInt8}
+    key_end::Vector{UInt8}
+end
+
+
+mutable struct RangeView
+    db :: DB
+    key_start::Vector{UInt8}
+    key_end::Vector{UInt8}
+end
+
+Base.IteratorEltype(::RangeView) = Vector{UInt8}
+Base.IteratorSize(::RangeView) = SizeUnknown()
+
+
+is_valid(it::RangeIterator) = it.handle != C_NULL && leveldb_iter_valid(it.handle) > 0x00
+
+function Base.iterate(view::RangeView)
+    it = RangeIterator(
+                       leveldb_create_iterator(view.db.handle, view.db.read_options),
+                       view.key_start, view.key_end)
+
+    leveldb_iter_seek(it.handle, pointer(it.key_start), length(it.key_start))
+    if is_valid(it)
+        kv = get_key_val(it)
+        leveldb_iter_next(it.handle)
+        return kv, it
+    else
+        close(it)
+        return nothing
+    end
+end
+
+
+function Base.iterate(view::RangeView, it::RangeIterator)
+    if is_valid(it)
+        # key is past the range?
+        kv = get_key_val(it)
+        if kv[1] > it.key_end
+            close(it)
+            return nothing
+        else
+            leveldb_iter_next(it.handle)
+            return  kv, it
+        end
+    else
+        return nothing
+    end
+end
+
 
 end # module LevelDB
