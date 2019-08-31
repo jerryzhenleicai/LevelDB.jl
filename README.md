@@ -88,7 +88,7 @@ Iterate over all `key => value` pairs in a `LevelDB.DB`.
 
 
 ```julia
-julia> for (key, value) in db_range_iterator(db, key1, key2)
+julia> for (key, value) in LevelDB.RangeView(db, key1, key2)
            #do something with the key value pair
        end
 ```
