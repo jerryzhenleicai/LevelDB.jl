@@ -104,15 +104,27 @@ function _leveldb_options_create(
     ## These are the possible options, TODO: figure out what they mean and add
     ## them one by one
     # leveldb_options_set_block_restart_interval
+    ### adjacent keys are stored in blocks (default: ~4096 uncompressed bytes). Bulk scans are faster with larger blocks, point reads of small values benefit from smaller block sizes.
     # leveldb_options_set_block_size
+    ### cache frequently used blocks uncompressed block contents
     # leveldb_options_set_cache
+    ### set the comparator that determines ordering of keys
     # leveldb_options_set_comparator
+    ### Default: with compression
     # leveldb_options_set_compression
     # leveldb_options_set_max_open_files
+    ### throw and error if DB exists
     # leveldb_options_set_error_if_exists
+    ### create the DB if true
     # leveldb_options_set_create_if_missing
     # leveldb_options_set_write_buffer_size
+    ### a filter policy can reduce the number of disk reads (a bloom filter with 10 bits/key reduces get reads for get calls by a factor of ~100)
     # leveldb_options_set_filter_policy
+    ### raise an error as soon as internal corruption is detected, default: off
+    # leveldb_options_set_paranoid_checks
+    ### file operations are routed through and Env object
+    # leveldb_options_set_env
+    # leveldb_options_set_info_log
 
     leveldb_options_set_error_if_exists(o, error_if_exists)
     leveldb_options_set_create_if_missing(o, create_if_missing)
@@ -125,6 +137,8 @@ function _leveldb_writeoptions_create()
 
     ## These are the possible options, TODO: figure out what they mean and add
     ## them one by one
+
+    ### asynchronous writing (default) is much faster but in case of a crash some data may be lost
     # leveldb_writeoptions_set_sync
 
     return o
@@ -135,8 +149,11 @@ function _leveldb_readoptions_create()
 
     ## These are the possible options, TODO: figure out what they mean and add
     ## them one by one
+    ### for disabling caching temporarily during bulk reads to avoid displacing data in cache
     # leveldb_readoptions_set_fill_cache
+    ### snapshots are readonly views of a version of the DB, if NULL it is the current state. There are GetSnapshot and ReleaseSnapshot methods
     # leveldb_readoptions_set_snapshot
+    ### if true forces checksum verification for all data reads, default is false
     # leveldb_readoptions_set_verify_checksums
 
     return o
