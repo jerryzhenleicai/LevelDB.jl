@@ -3,8 +3,8 @@ using Libdl
 
 @BinDeps.setup
 
-version = "1.20"
-url = "https://github.com/google/leveldb/archive/v$(version).tar.gz"
+version = "1.22"
+url = "https://github.com/google/leveldb/archive/$(version).tar.gz"
 
 libleveldb = library_dependency("libleveldb")
 
@@ -22,8 +22,9 @@ provides(BuildProcess,
         @build_steps begin
             ChangeDirectory(leveldbsrcdir)
             FileRule(leveldblibfile, @build_steps begin
-                     `make`
-                     `cp out-shared/libleveldb.$(Libdl.dlext).$(version) $(leveldblibfile)`
+		     `cmake -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release .`
+		     `cmake --build .`
+                     `cp libleveldb.$(Libdl.dlext).$(version).0 $(leveldblibfile)`
             end)
         end
     end), libleveldb, os = :Unix)
