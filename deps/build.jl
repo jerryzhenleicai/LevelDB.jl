@@ -24,7 +24,7 @@ provides(BuildProcess,
             FileRule(leveldblibfile, @build_steps begin
 		     `cmake -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release .`
 		     `cmake --build .`
-                     `cp libleveldb.$(Libdl.dlext).$(version).0 $(leveldblibfile)`
+                     `cp libleveldb.$(Libdl.dlext) $(leveldblibfile)`
             end)
         end
     end), libleveldb, os = :Unix)
