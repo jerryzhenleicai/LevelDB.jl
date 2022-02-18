@@ -1,6 +1,9 @@
 language: julia
 
-sudo: false
+branches:
+  only:
+  - master
+  - workab
 
 os:
   - linux
@@ -8,13 +11,12 @@ os:
 
 julia:
   - 1.0
-  - 1.1
-  - 1.2
+  - 1.5
   - nightly
 
-matrix:
+jobs:
   allow_failures:
     - julia: nightly
 
 after_success:
-  - julia -e 'cd(Pkg.dir("LevelDB")); Pkg.add("Coverage"); using Coverage; Codecov.submit(process_folder())'
+  - julia -e 'using Pkg;cd(Pkg.dir("LevelDB")); Pkg.add("Coverage"); using Coverage; Codecov.submit(process_folder())'
