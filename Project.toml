@@ -1,13 +1,14 @@
 name = "LevelDB"
 uuid = "6248df61-47b1-58fa-9b7c-c0f1183480ca"
 authors = ["jerryzhenleicai@users.noreply.github.com", "Guido Kraemer <gdkrmr@users.noreply.github.com>"]
-version = "2.1.0"
+version = "2.2.0"
 
 [deps]
 LevelDB_jll = "e5add9ea-9f03-521a-be84-f8c1bde3cbe9"
 Libdl = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
 
 [compat]
+LevelDB_jll = "1.22"
 julia = "1"
 
 [extras]
