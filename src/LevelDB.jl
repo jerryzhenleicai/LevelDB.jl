@@ -269,17 +269,6 @@ function get_key_val(it::AbstractIterator)
     return key => val
 end
 
-#=
-function Base.iterate(db::DB, state=nothing)
-    if state === nothing
-        it = Iterator(db)
-    end
-
-    n = length(res)
-    (n == 0 || i > n) && return nothing
-    @inbounds res[i], i+1
-end
-=#
 function Base.iterate(db::DB)
     it = Iterator(db)
 
@@ -338,7 +327,8 @@ mutable struct RangeView
     key_end::Vector{UInt8}
 end
 
-Base.IteratorEltype(::RangeView) = Vector{UInt8}
+Base.IteratorEltype(::DB) = Base.HasEltype()
+Base.eltype(::DB) = Pair{Vector{UInt8}, Vector{UInt8}}
 Base.IteratorSize(::RangeView) = Base.SizeUnknown()
 
 
