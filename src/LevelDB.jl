@@ -238,7 +238,7 @@ function Iterator(db::DB)
 end
 
 Base.IteratorEltype(::DB) = Vector{UInt8}
-Base.IteratorSize(::DB) = SizeUnknown()
+Base.IteratorSize(::DB) = Base.SizeUnknown()
 
 Base.seekstart(it::Iterator) = leveldb_iter_seek_to_first(it.handle)
 # Base.seekend(it::Iterator) = leveldb_iter_seek_to_last(it.handle)
@@ -268,9 +268,20 @@ function get_key_val(it::AbstractIterator)
     return key => val
 end
 
-function Base.iterate(db::DB)
+#=
+function Base.iterate(db::DB, state=nothing)
+    if state === nothing
+        it = Iterator(db)
+    end
 
+    n = length(res)
+    (n == 0 || i > n) && return nothing
+    @inbounds res[i], i+1
+end
+=#
+function Base.iterate(db::DB)
     it = Iterator(db)
+
     seekstart(it)
 
     if is_valid(it)
@@ -327,7 +338,7 @@ mutable struct RangeView
 end
 
 Base.IteratorEltype(::RangeView) = Vector{UInt8}
-Base.IteratorSize(::RangeView) = SizeUnknown()
+Base.IteratorSize(::RangeView) = Base.SizeUnknown()
 
 
 is_valid(it::RangeIterator) = it.handle != C_NULL && leveldb_iter_valid(it.handle) > 0x00
@@ -364,6 +375,5 @@ function Base.iterate(view::RangeView, it::RangeIterator)
         return nothing
     end
 end
-
 
 end # module LevelDB
