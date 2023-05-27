@@ -237,7 +237,8 @@ function Iterator(db::DB)
     Iterator(leveldb_create_iterator(db.handle, db.read_options))
 end
 
-Base.IteratorEltype(::DB) = Vector{UInt8}
+Base.IteratorEltype(::DB) = Base.HasEltype()
+Base.eltype(::DB) = Pair{Vector{UInt8}, Vector{UInt8}}
 Base.IteratorSize(::DB) = Base.SizeUnknown()
 
 Base.seekstart(it::Iterator) = leveldb_iter_seek_to_first(it.handle)
