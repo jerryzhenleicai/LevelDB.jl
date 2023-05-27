@@ -1,13 +1,6 @@
 module LevelDB
 
-using BinDeps
-
-depsfile = joinpath(dirname(pathof(LevelDB)), "..", "deps", "deps.jl")
-if isfile(depsfile)
-    include(depsfile)
-else
-    error("LevelDB not properly installed. Please run Pkg.build(\"LevelDB\")")
-end
+using LevelDB_jll
 
 include("libleveldb_common.jl")
 include("libleveldb_api.jl")

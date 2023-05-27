@@ -4,7 +4,7 @@ authors = ["jerryzhenleicai@users.noreply.github.com", "Guido Kraemer <gdkrmr@us
 version = "2.1.0"
 
 [deps]
-BinDeps = "9e28174c-4ba2-5203-b857-d8d62c4213ee"
+LevelDB_jll = "e5add9ea-9f03-521a-be84-f8c1bde3cbe9"
 Libdl = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
 
 [compat]
