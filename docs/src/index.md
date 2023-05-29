@@ -7,6 +7,6 @@ end
 
 ```@autodocs
 Modules = [LevelDB]
-Public = false
+Public = true
 Order = [:function, :type]
 ```
