@@ -146,6 +146,6 @@ end
     
     @info "prev close db"
     close(db)
-
+    @info "after close db"
 end
 
