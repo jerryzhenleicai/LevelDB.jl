@@ -1,21 +1,18 @@
 using Test
 using LevelDB
 
-run(`rm -rf level.db`)
-run(`rm -rf level.db.0`)
-run(`rm -rf level.db.1`)
-run(`rm -rf level.db.2`)
-run(`rm -rf level.db.3`)
-
+Path = mktempdir(prefix="LevelDB-tests")
 @testset "DB basic operations" begin
-    @test_throws ErrorException LevelDB.DB("level.db")
+    dbname = joinpath(Path, "L.db.0")
+    @show dbname
+    @test_throws ErrorException DB(dbname)
 
-    db = LevelDB.DB("level.db", Vector{UInt8}, Vector{UInt8}, create_if_missing = true)
+    db = LevelDB.DB(dbname, Vector{UInt8}, Vector{UInt8}, create_if_missing = true)
     close(db)
     @test !isopen(db)
 
-    @test_throws ErrorException LevelDB.DB("level.db", Vector{UInt8}, Vector{UInt8}, error_if_exists = true)
-    db = LevelDB.DB("level.db", Vector{UInt8}, Vector{UInt8})
+    @test_throws ErrorException DB(dbname, Vector{UInt8}, Vector{UInt8}, error_if_exists = true)
+    db = DB(dbname, Vector{UInt8}, Vector{UInt8})
 
     db[[0x00]] = [0x01]
     @info db[[0x00]]
@@ -32,9 +29,10 @@ run(`rm -rf level.db.3`)
 end
 
 @testset "DB basic operations - String" begin
-    @test_throws ErrorException LevelDB.DB("level.db.1")
+    dbname = joinpath(Path, "L.db.1")
+    @test_throws ErrorException LevelDB.DB(dbname)
 
-    db = LevelDB.DB("level.db.1", create_if_missing = true)
+    db = DB(dbname, create_if_missing = true)
     db["hola"] = "mundo!"
     @info db["hola"]
     @test db["hola"] == "mundo!"
@@ -50,7 +48,8 @@ end
 end
 
 @testset "DB batching and iteration" begin
-    db = LevelDB.DB("level.db.2", Vector{UInt8}, Vector{UInt8}, create_if_missing = true)
+    dbname = joinpath(Path, "L.db.2")
+    db = DB(dbname, Vector{UInt8}, Vector{UInt8}, create_if_missing = true)
     d = Dict([0xa] => [0x1],
              [0xb, 0xb] => [0x2],
              [0xc, 0xc] => [0x3],
@@ -101,11 +100,12 @@ end
 
 
 @testset "DB Errors" begin
-    @test_throws ErrorException LevelDB.DB("level.db.3")
+    @test_throws ErrorException DB("level.db.3")
 end
 
 @testset "DB key range iterator" begin
-    db = LevelDB.DB("level.db.3", Vector{UInt8}, Vector{UInt8}, create_if_missing = true)
+    dbname = joinpath(Path, "L.db.3")
+    db = DB(dbname, Vector{UInt8}, Vector{UInt8}, create_if_missing = true)
     d = Dict([0xa] => [0x1],
              [0xb, 0xb] => [0x2],
              [0xc, 0xc] => [0x3],
@@ -149,8 +149,3 @@ end
 
 end
 
-run(`rm -rf level.db`)
-run(`rm -rf level.db.0`)
-run(`rm -rf level.db.1`)
-run(`rm -rf level.db.2`)
-run(`rm -rf level.db.3`)

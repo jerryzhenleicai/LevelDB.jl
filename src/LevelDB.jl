@@ -227,7 +227,7 @@ end
 
 Base.delete!(db::DB, key) = del!(db, key)
 
-function del!(db::DB, key)
+function del!(db::DB{K,V}, key::K) where {K,V}
     keyptr, keysize = serializekey(db, key)
     @check_err_ref leveldb_delete(db.handle, db.write_options,
                                   keyptr, keysize,
@@ -235,19 +235,20 @@ function del!(db::DB, key)
     db
 end
 
-function del_batch!(db::DB, keys)
-    for i in keys
-        delete!(db, i)
+function del_batch!(db::DB{K,V}, keys::AbstractVector{K}) where {K,V}
+    for k in keys
+        delete!(db, k)
     end
 
     db
 end
 
-function fetch_batch(db::DB, keys)
+function fetch_batch(db::DB{K,V}, keys::AbstractVector{K}) where {K,V}
     [db[k] for k in keys]
 end
 
-function put_batch!(db::DB, pairs)
+function put_batch!(db::DB{K,V}, pairs) where {K,V}
+    @assert eltype(pairs) in (Pair{K,V}, Tuple{K,V}) 
     batch = leveldb_writebatch_create()
 
     for (key, val) in pairs
