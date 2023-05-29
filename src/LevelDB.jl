@@ -1,7 +1,7 @@
 module LevelDB
 
 using LevelDB_jll
-export DB, Range, put!, put_batch!, fetch, fetch_batch, del!, del_batch!
+export DB, Range, Prefix, put!, put_batch!, fetch, fetch_batch, del!, del_batch!
 
 include("libleveldb_common.jl")
 include("libleveldb_api.jl")
@@ -49,27 +49,33 @@ serializevalue(::DB, data::String) = pointer(data), sizeof(data)
 serializekey(::DB, data::Vector) = pointer(data), sizeof(data)
 serializevalue(::DB, data::Vector) = pointer(data), sizeof(data)
 
-function deserialize_(::Type{T}, data, len::Integer)::T where T
+function deserialize_(::Type{T}, data, len::Integer, copy_::Bool)::T where T
     p = convert(Ptr{T}, data)
-    unsafe_load(p)
+    p_ = unsafe_load(p)
+    copy_ ? copy(p_) : p_
 end
 
-function deserialize_(::Type{Vector{T}}, data, len::Integer)::Vector{T} where T
+function deserialize_(::Type{Vector{T}}, data, len::Integer, copy_::Bool)::Vector{T} where T
     p = convert(Ptr{T}, data)
-    unsafe_wrap(Vector{T}, p, len ÷ sizeof(T); own=true)
+    if copy_
+        copy(unsafe_wrap(Vector{T}, p, len ÷ sizeof(T); own=false))
+    else
+        unsafe_wrap(Vector{T}, p, len ÷ sizeof(T); own=true)
+    end
 end
 
-function deserialize_(::Type{String}, data, len::Integer)
+function deserialize_(::Type{String}, data, len::Integer, copy_::Bool)
     p = convert(Ptr{UInt8}, data)
-    unsafe_string(p, len)
+    p_ = unsafe_string(p, len)
+    copy_ ? deepcopy(p_) : p_
 end
 
 
-deserializekey(::DB{K,V}, data::Cstring, len::Integer) where {K,V} = deserialize_(K, data, len)
-deserializevalue(::DB{K,V}, data::Cstring, len::Integer) where {K,V} = deserialize_(V, data, len)
+deserializekey(::DB{K,V}, data::Cstring, len::Integer, copy_::Bool) where {K,V} = deserialize_(K, data, len, copy_)
+deserializevalue(::DB{K,V}, data::Cstring, len::Integer, copy_::Bool) where {K,V} = deserialize_(V, data, len, copy_)
 
 """
-    LevelDB.DB(file_path, KeyType, ValueType; create_if_missing = false, error_if_exists = false)::LevelDB.DB
+    DB(file_path, KeyType, ValueType; create_if_missing = false, error_if_exists = false)
 
 Opens or creates a `LevelDB` database at `file_path`.
 
@@ -225,7 +231,7 @@ function fetch(db::DB{K,V}, key::K)::V where {K,V}
     @assert val_size != C_NULL
     @assert res_ptr != C_NULL
 
-    deserializevalue(db, res_ptr, size)
+    deserializevalue(db, res_ptr, size, false)
 end
 
 @inline Base.setindex!(db::DB, val, key) = put!(db, val, key)
@@ -339,9 +345,9 @@ is_valid(it::AbstractIterator) = it.handle != C_NULL && leveldb_iter_valid(it.ha
 function get_key_val(db::DB, it::AbstractIterator)
     len = Ref{Csize_t}(0)
     keyptr = leveldb_iter_key(it.handle, len)
-    key = deepcopy(deserializekey(db, keyptr, len[]))
+    key = deserializekey(db, keyptr, len[], true)
     valptr = leveldb_iter_value(it.handle, len)
-    val = deepcopy(deserializevalue(db, valptr, len[]))
+    val = deserializevalue(db, valptr, len[], true)
 
     return key => val
 end
@@ -364,7 +370,7 @@ end
 
 
 """
-    LevelDB.Range(db::LevelDB.DB, key_start, key_end)::LevelDB.Range
+    Range(db::LevelDB.DB, key_start, key_end)::LevelDB.Range
 
 Iterates over a subset of the data base
 
@@ -389,7 +395,6 @@ Base.eltype(::Range{K,V}) where {K,V} = Pair{K,V}
 Base.IteratorSize(::Range) = Base.SizeUnknown()
 
 
-
 function Base.iterate(view::Range)
     it = Iterator(leveldb_create_iterator(view.db.handle, view.db.read_options))
     keyptr, keylen = serializekey(view.db, view.key_start)
@@ -410,6 +415,56 @@ function Base.iterate(view::Range, it::Iterator)
         # key is past the range?
         kv = get_key_val(view.db, it)
         if kv[1] > view.key_end
+            close(it)
+            return nothing
+        else
+            leveldb_iter_next(it.handle)
+            return kv, it
+        end
+    else
+        return nothing
+    end
+end
+
+"""
+    Prefix(db::DB, prefix::String)
+
+Iterates over a subset of the data base with a common prefix
+
+# Parameters
+- `DB`: A `LevelDB.DB` object to iterate over.
+- `prefix`: Iterate from here.
+
+"""
+struct Prefix{V}
+    db :: DB{String,V}
+    prefix::String
+end
+
+Base.IteratorEltype(::Prefix) = Base.HasEltype()
+Base.eltype(::Prefix{V}) where V = Pair{String,V}
+Base.IteratorSize(::Prefix) = Base.SizeUnknown()
+
+function Base.iterate(view::Prefix)
+    it = Iterator(leveldb_create_iterator(view.db.handle, view.db.read_options))
+    keyptr, keylen = serializekey(view.db, view.prefix)
+    leveldb_iter_seek(it.handle, keyptr, keylen)
+    if is_valid(it)
+        kv = get_key_val(view.db, it)
+        leveldb_iter_next(it.handle)
+        return kv, it
+    else
+        close(it)
+        return nothing
+    end
+end
+
+
+function Base.iterate(view::Prefix, it::Iterator)
+    if is_valid(it)
+        # key is past the range?
+        kv = get_key_val(view.db, it)
+        if !startswith(kv[1], view.prefix)
             close(it)
             return nothing
         else

@@ -150,3 +150,46 @@ end
     @info "after close db"
 end
 
+@testset "String DB key range and prefix iterators" begin
+    dbname = joinpath(Path, "L.db.4")
+    db = DB(dbname, String, Vector{UInt8}, create_if_missing = true)
+    d = Dict(
+             "aa" => [0xaa],
+             "ab" => [0xab],
+             "ac" => [0xac],
+             "ba" => [0xba],
+             "bb" => [0xbb],
+             "bc" => [0xbc],
+             "ca" => [0xca],
+             "cb" => [0xcb],
+             "cc" => [0xcc],
+    )
+
+    put_batch!(db, d)
+    order = Dict(i => k for (i, (k, v)) in enumerate(sort(collect(db))))
+
+    # Test a range iterator that begins with the second item in DB
+    for (i, (k, v)) in enumerate(Range(db, "aa", "bd"))
+        @test order[i] == k 
+        @test parse(UInt8, k, base=16) == only(v)
+        @test v[1] <= 0xbd
+    end
+    
+    @info " prefix a"
+    for (k, v) in Prefix(db, "a")
+        @info k => v
+        @test parse(UInt8, k, base=16) == only(v)
+        @test startswith(k, "a")
+    end
+
+    @info " prefix c"
+    
+    for (k, v) in Prefix(db, "c")
+        @info k => v
+        @test parse(UInt8, k, base=16) == only(v)
+        @test startswith(k, "c")
+    end
+    
+    close(db)
+end
+
