@@ -1,7 +1,7 @@
 using Test
 using LevelDB
 
-Path = mktempdir(prefix="LevelDB-tests")
+Path = mktempdir(prefix="LevelDB-tests", cleanup=false)
 @testset "DB basic operations" begin
     dbname = joinpath(Path, "L.db.0")
     @show dbname
