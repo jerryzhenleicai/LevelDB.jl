@@ -14,8 +14,10 @@ The main difference is the use of `LevelDB_jll` and the use of Strings and any k
 More over, the API was made more explicit to be able to handle different data types.
 It mantains the dictionary interface for one key operations.
 
-NOTE: If you're considering using `LevelDB` for a fresh project, please see this [comparison](https://mozilla.github.io/firefox-browser-architecture/text/0017-lmdb-vs-leveldb.html)
-with [`LMDB`](https://www.symas.com/lmdb) (a Julia package is also available [`LMDB.jl`](https://github.com/wildart/LMDB.jl))
+NOTE: If you're considering using `LevelDB` for a fresh project,
+  - please see this [comparison](https://mozilla.github.io/firefox-browser-architecture/text/0017-lmdb-vs-leveldb.html) with [`LMDB`](https://www.symas.com/lmdb) (a Julia package is also available [`LMDB.jl`](https://github.com/wildart/LMDB.jl)).
+  - On the other hand, `LevelDB` has builtin compression and it is less painful whenever using `mmap` becomes an issue.
+
 
 ## Install `LevelDB.jl`
 
