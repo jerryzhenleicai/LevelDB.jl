@@ -9,10 +9,13 @@ alternative than databases. LevelDB was written in C++ with a C calling API
 included. This module provides a Julia interface to LevelDB using the `LevelDB_jll` and Julia's
 `ccall` mechanism.
 
-This pacakge is based on the [`LevelDB`](https://github.com/jerryzhenleicai/LevelDB.jl) package.
+This package is based on the [`LevelDB`](https://github.com/jerryzhenleicai/LevelDB.jl) package.
 The main difference is the use of `LevelDB_jll` and the use of Strings and any kind of Arrays as key and values.
 More over, the API was made more explicit to be able to handle different data types.
 It mantains the dictionary interface for one key operations.
+
+NOTE: If you're considering using `LevelDB` for a fresh project, please see this [comparison](https://mozilla.github.io/firefox-browser-architecture/text/0017-lmdb-vs-leveldb.html)
+with [`LMDB`](https://www.symas.com/lmdb) (a Julia package is also available [`LMDB.jl`](https://github.com/wildart/LMDB.jl))
 
 ## Install `LevelDB.jl`
 
