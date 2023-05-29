@@ -1,14 +1,14 @@
 module LevelDB
 
 using LevelDB_jll
-export DB, KeyList, ValueList
+export DB, Range, put!, put_batch!, fetch, fetch_batch, del!, del_batch!
 
 include("libleveldb_common.jl")
 include("libleveldb_api.jl")
 
 macro destroy_if_not_null(f, ptr)
     esc(quote
-          if $ptr != C_NULL
+        if $ptr != C_NULL
           $f($ptr)
           $ptr = C_NULL
         end
@@ -48,24 +48,24 @@ serializekey(::DB, data) = pointer(data), sizeof(data)
 serializevalue(::DB, data) = pointer(data), sizeof(data)
 
 
-function deserialize_(::Type{T}, data::Ptr, len::Integer)::T where T
+function deserialize_(::Type{T}, data, len::Integer)::T where T
     p = convert(Ptr{T}, data)
     unsafe_load(p)
 end
 
-function deserialize_(::Vector{T}, data::Ptr, len::Integer)::Vector{T} where T
+function deserialize_(::Type{Vector{T}}, data, len::Integer)::Vector{T} where T
     p = convert(Ptr{T}, data)
     unsafe_wrap(Vector{T}, p, len ÷ sizeof(T); own=true)
 end
 
-function deserialize_(::String, data::Ptr, len::Integer)
+function deserialize_(::Type{String}, data, len::Integer)
     p = convert(Ptr{UInt8}, data)
     unsafe_string(p, len)
 end
 
-deserializevalue(::DB{K,V}, data::Ptr, len::Integer)::V where {K,V} = deserialize_(V, data, len)
-deserializekey(::DB{K,V}, data::Ptr, len::Integer)::K where {K,V} = deserialize_(K, data, len)
 
+deserializekey(::DB{K,V}, data::Cstring, len::Integer) where {K,V} = deserialize_(K, data, len)
+deserializevalue(::DB{K,V}, data::Cstring, len::Integer) where {K,V} = deserialize_(V, data, len)
 
 """
     LevelDB.DB(file_path, KeyType, ValueType; create_if_missing = false, error_if_exists = false)::LevelDB.DB
@@ -89,7 +89,7 @@ Opens or creates a `LevelDB` database at `file_path`.
 function DB(
         dir               :: String,
                           :: Type{KeyType} = String,
-                          :: Type{ValueType} = String,
+                          :: Type{ValueType} = String;
         create_if_missing :: Bool = false,
         error_if_exists   :: Bool = false
     ) where {KeyType,ValueType}
@@ -192,8 +192,9 @@ function Base.show(io::IO, db::DB)
     print(io, "LevelDB: ", db.dir)
 end
 
+@inline Base.getindex(db::DB, key) = fetch(db, key)
 
-function Base.getindex(db::DB{K,V}, key::K)::V where {K,V}
+function fetch(db::DB{K,V}, key::K)::V where {K,V}
     val_size = Ref{Csize_t}(0)
     keyptr, keysize = serializekey(db, key)
     @check_err_ref res_ptr = leveldb_get(db.handle, db.read_options,
@@ -202,7 +203,7 @@ function Base.getindex(db::DB{K,V}, key::K)::V where {K,V}
 
     size = val_size[]
     if size == 0
-        throw(KeyError(i))
+        throw(KeyError(key))
     end
 
     @assert val_size != C_NULL
@@ -211,7 +212,9 @@ function Base.getindex(db::DB{K,V}, key::K)::V where {K,V}
     deserializevalue(db, res_ptr, size)
 end
 
-function Base.setindex!(db::DB{K,V}, key::K, val::V)::V where {K,V}
+@inline Base.setindex!(db::DB, val, key) = put!(db, val, key)
+
+function put!(db::DB{K,V}, val::V, key::K)::V where {K,V}
     keyptr, keysize = serializekey(db, key)
     valptr, valsize = serializevalue(db, val)
     @check_err_ref leveldb_put(db.handle, db.write_options,
@@ -221,7 +224,9 @@ function Base.setindex!(db::DB{K,V}, key::K, val::V)::V where {K,V}
     val
 end
 
-function Base.delete!(db::DB, key)
+Base.delete!(db::DB, key) = del!(db, key)
+
+function del!(db::DB, key)
     keyptr, keysize = serializekey(db, key)
     @check_err_ref leveldb_delete(db.handle, db.write_options,
                                   keyptr, keysize,
@@ -229,31 +234,22 @@ function Base.delete!(db::DB, key)
     db
 end
 
-struct KeyList
-    keys
-end
-
-struct ValueList
-    values
-end
-
-
-function delete!(db::DB, k::KeyList)
-    for i in k.keys
+function del_batch!(db::DB, keys)
+    for i in keys
         delete!(db, i)
     end
 
     db
 end
 
-function Base.getindex(db::DB, key::KeyList)
-    [db[k] for k in key.keys]
+function fetch_batch(db::DB, keys)
+    [db[k] for k in keys]
 end
 
-function Base.setindex!(db::DB, v::ValueList, k::KeyList)
+function put_batch!(db::DB, pairs)
     batch = leveldb_writebatch_create()
 
-    for (key, val) in zip(k.keys, v.values)
+    for (key, val) in pairs
         keyptr, keysize = serializekey(db, key)
         valptr, valsize = serializevalue(db, val)
         leveldb_writebatch_put(batch,
@@ -264,9 +260,9 @@ function Base.setindex!(db::DB, v::ValueList, k::KeyList)
     @check_err_ref leveldb_write(db.handle, db.write_options, batch, err_ref) begin
         leveldb_writebatch_destroy(batch)
     end
-
     leveldb_writebatch_destroy(batch)
-    k
+
+    pairs
 end
 
 # This needs to be mutable, because handle == C_NULL is used to avoid double
@@ -289,28 +285,30 @@ Base.IteratorSize(::DB) = Base.SizeUnknown()
 Base.seekstart(it::Iterator) = leveldb_iter_seek_to_first(it.handle)
 # Base.seekend(it::Iterator) = leveldb_iter_seek_to_last(it.handle)
 
-Base.close(it::AbstractIterator) = @destroy_if_not_null leveldb_iter_destroy it.handle
+function Base.close(it::AbstractIterator)
+    @destroy_if_not_null leveldb_iter_destroy it.handle
+end
 
 is_valid(it::AbstractIterator) = it.handle != C_NULL && leveldb_iter_valid(it.handle) > 0x00
 
-function get_key_val(it::AbstractIterator)
+function get_key_val(db::DB, it::AbstractIterator)
     len = Ref{Csize_t}(0)
     keyptr = leveldb_iter_key(it.handle, len)
-    key = deepcopy(deserialize(db, keyptr, len))
+    key = deepcopy(deserializekey(db, keyptr, len[]))
     valptr = leveldb_iter_value(it.handle, len)
-    val = deepcopy(deserialize(db, valptr, len))
+    val = deepcopy(deserializevalue(db, valptr, len[]))
 
     return key => val
 end
 
 function Base.iterate(db::DB, it=nothing)
-    it === nothing
-        it = Iterator()
+    if it === nothing
+        it = Iterator(db)
         seekstart(it)
     end
 
     if is_valid(it)
-        kv = get_key_val(it)
+        kv = get_key_val(db, it)
         leveldb_iter_next(it.handle)
         return kv, it
     else
@@ -320,52 +318,39 @@ function Base.iterate(db::DB, it=nothing)
 end
 
 
-####################################################
-# iterator that iterates over a range of keys of the DB
-###
-mutable struct RangeIterator <: AbstractIterator
-    handle :: Ptr{leveldb_iterator_t}
-    key_start
-    key_end
-end
-
-
 """
-    LevelDB.RangeView(db::LevelDB.DB, key_start, key_end)::LevelDB.RangeView
+    LevelDB.Range(db::LevelDB.DB, key_start, key_end)::LevelDB.Range
 
 Iterates over a subset of the data base
 
 # Parameters
 - `db::LevelDB.DB`: A `LevelDB.DB` object to iterate over.
-- `key_start::Vector{UInt8}`: Iterate from here.
-- `key_end::Vector{UInt8}`: Iterate until here.
+- `key_start`: Iterate from here.
+- `key_end`: Iterate until here.
 
 # Example
-    for (key, value) in LevelDB.RangeView(db, [0x01], [0x05])
+    for (key, value) in LevelDB.Range(db, [0x01], [0x05])
         # do something with the key and value
     end
 """
-mutable struct RangeView
-    db :: DB
-    key_start
-    key_end
+struct Range{K,V}
+    db :: DB{K,V}
+    key_start::K
+    key_end::K
 end
 
-Base.IteratorEltype(::DB) = Base.HasEltype()
-Base.eltype(::DB{K,V}) where {K,V} = Pair{K,V}
-Base.IteratorSize(::RangeView) = Base.SizeUnknown()
+Base.IteratorEltype(::Range) = Base.HasEltype()
+Base.eltype(::Range{K,V}) where {K,V} = Pair{K,V}
+Base.IteratorSize(::Range) = Base.SizeUnknown()
 
 
-is_valid(it::RangeIterator) = it.handle != C_NULL && leveldb_iter_valid(it.handle) > 0x00
 
-function Base.iterate(view::RangeView)
-    it = RangeIterator(
-                       leveldb_create_iterator(view.db.handle, view.db.read_options),
-                       view.key_start, view.key_end)
-
-    leveldb_iter_seek(it.handle, pointer(it.key_start), length(it.key_start))
+function Base.iterate(view::Range)
+    it = Iterator(leveldb_create_iterator(view.db.handle, view.db.read_options))
+    keyptr, keylen = serializekey(view.db, view.key_start)
+    leveldb_iter_seek(it.handle, keyptr, keylen)
     if is_valid(it)
-        kv = get_key_val(it)
+        kv = get_key_val(view.db, it)
         leveldb_iter_next(it.handle)
         return kv, it
     else
@@ -375,16 +360,16 @@ function Base.iterate(view::RangeView)
 end
 
 
-function Base.iterate(view::RangeView, it::RangeIterator)
+function Base.iterate(view::Range, it::Iterator)
     if is_valid(it)
         # key is past the range?
-        kv = get_key_val(it)
-        if kv[1] > it.key_end
+        kv = get_key_val(view.db, it)
+        if kv[1] > view.key_end
             close(it)
             return nothing
         else
             leveldb_iter_next(it.handle)
-            return  kv, it
+            return kv, it
         end
     else
         return nothing
