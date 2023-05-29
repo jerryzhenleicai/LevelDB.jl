@@ -1,6 +1,6 @@
 # LevelDB
-[![Build Status](https://api.travis-ci.org/jerryzhenleicai/LevelDB.jl.svg?branch=master)](https://www.travis-ci.org/jerryzhenleicai/LevelDB.jl)
-[![codecov.io](http://codecov.io/github/jerryzhenleicai/LevelDB.jl/coverage.svg?branch=master)](http://codecov.io/github/jerryzhenleicai/LevelDB.jl?branch=master)
+[![CI](https://github.com/sadit/LevelDB.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/sadit/LevelDB.jl/actions/workflows/ci.yml)
+[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://sadit.github.io/LevelDB.jl)
 
 `LevelDB` is Google's open source on-disk key-value storage library that
 provides an ordered mapping from string keys to binary values. In many
