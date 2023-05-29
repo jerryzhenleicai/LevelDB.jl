@@ -90,12 +90,12 @@ julia> put_batch!(db, pairs)
 
 Creates a write batch internally which is then commited to `db`.
 
-Batch deletions (not transactional).
+Batch deletions.
 ```julia
 julia> del_batch!(db, keys)
 ```
 
-Fetch many keys (not necessarily sequential, not transactional)
+Fetch many keys (not necessarily sequential)
 ```julia
 julia> fetch_batch!(db, keys)
 ```

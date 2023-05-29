@@ -73,8 +73,11 @@ deserializevalue(::DB{K,V}, data::Cstring, len::Integer) where {K,V} = deseriali
 
 Opens or creates a `LevelDB` database at `file_path`.
 
+
 # Parameters
 - `file_path::String`: The full path to a directory that hosts a `LevelDB` database.
+- `KeyType::Type` type of keys (defaults to `String`).
+- `ValueType::Type` type values (defaults to `String`).
 - `create_if_missing::Bool`: When `true` the database will be created if it does not exist.
 - `error_if_exists::Bool`: When `true` an error will be thrown if the database already exists.
 
@@ -182,6 +185,12 @@ end
 
 Base.isopen(db::DB) = db.handle != C_NULL
 
+
+"""
+    close(db::DB)
+
+Closes a database (free resouces)
+"""
 function Base.close(db::DB)
     @destroy_if_not_null leveldb_close                db.handle
     @destroy_if_not_null leveldb_options_destroy      db.options
@@ -195,6 +204,12 @@ end
 
 @inline Base.getindex(db::DB, key) = fetch(db, key)
 
+
+"""
+    fetch(db::DB{K,V}, key::K)::V where {K,V}
+
+Fetches value associated to the given key
+"""
 function fetch(db::DB{K,V}, key::K)::V where {K,V}
     val_size = Ref{Csize_t}(0)
     keyptr, keysize = serializekey(db, key)
@@ -215,6 +230,12 @@ end
 
 @inline Base.setindex!(db::DB, val, key) = put!(db, val, key)
 
+"""
+    put!(db::DB{K,V}, val::V, key::K)::V where {K,V}
+    
+
+Adds pair `key => val` to the database
+"""
 function put!(db::DB{K,V}, val::V, key::K)::V where {K,V}
     keyptr, keysize = serializekey(db, key)
     valptr, valsize = serializevalue(db, val)
@@ -227,6 +248,13 @@ end
 
 Base.delete!(db::DB, key) = del!(db, key)
 
+
+"""
+    del!(db::DB{K,V}, key::K) where {K,V}
+
+
+Removes `key` and it associated value from the database
+"""
 function del!(db::DB{K,V}, key::K) where {K,V}
     keyptr, keysize = serializekey(db, key)
     @check_err_ref leveldb_delete(db.handle, db.write_options,
@@ -235,6 +263,11 @@ function del!(db::DB{K,V}, key::K) where {K,V}
     db
 end
 
+"""
+    del_batch!(db::DB{K,V}, keys::AbstractVector{K}) where {K,V}
+
+Removes all pairs associated with the given keys 
+"""
 function del_batch!(db::DB{K,V}, keys::AbstractVector{K}) where {K,V}
     for k in keys
         delete!(db, k)
@@ -243,10 +276,20 @@ function del_batch!(db::DB{K,V}, keys::AbstractVector{K}) where {K,V}
     db
 end
 
+"""
+    fetch_batch(db::DB{K,V}, keys::AbstractVector{K}) where {K,V}
+
+Retrieves all pairs associated with the given list of keys
+"""
 function fetch_batch(db::DB{K,V}, keys::AbstractVector{K}) where {K,V}
     [db[k] for k in keys]
 end
 
+"""
+    put_batch!(db::DB{K,V}, pairs) where {K,V}
+
+Adds all pairs to the database
+"""
 function put_batch!(db::DB{K,V}, pairs) where {K,V}
     @assert eltype(pairs) in (Pair{K,V}, Tuple{K,V}) 
     batch = leveldb_writebatch_create()
