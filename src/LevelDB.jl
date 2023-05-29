@@ -44,9 +44,10 @@ mutable struct DB{KeyType,ValueType}
     read_options  :: Ptr{leveldb_readoptions_t}
 end
 
-serializekey(::DB, data) = pointer(data), sizeof(data)
-serializevalue(::DB, data) = pointer(data), sizeof(data)
-
+serializekey(::DB, data::String) = pointer(data), sizeof(data)
+serializevalue(::DB, data::String) = pointer(data), sizeof(data)
+serializekey(::DB, data::Vector) = pointer(data), sizeof(data)
+serializevalue(::DB, data::Vector) = pointer(data), sizeof(data)
 
 function deserialize_(::Type{T}, data, len::Integer)::T where T
     p = convert(Ptr{T}, data)

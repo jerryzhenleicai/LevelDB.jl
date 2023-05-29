@@ -2,6 +2,8 @@ using Test
 using LevelDB
 
 run(`rm -rf level.db`)
+run(`rm -rf level.db.0`)
+run(`rm -rf level.db.1`)
 run(`rm -rf level.db.2`)
 run(`rm -rf level.db.3`)
 
@@ -22,6 +24,24 @@ run(`rm -rf level.db.3`)
     # as in Dict, deleting a non-existing key should not throw an error
     delete!(db, [0x00])
     @test_throws KeyError db[[0x00]]
+    close(db)
+    @test db.handle        == C_NULL
+    @test db.options       == C_NULL
+    @test db.write_options == C_NULL
+    @test db.read_options  == C_NULL
+end
+
+@testset "DB basic operations - String" begin
+    @test_throws ErrorException LevelDB.DB("level.db.1")
+
+    db = LevelDB.DB("level.db.1", create_if_missing = true)
+    db["hola"] = "mundo!"
+    @info db["hola"]
+    @test db["hola"] == "mundo!"
+    delete!(db, "hola")
+    # as in Dict, deleting a non-existing key should not throw an error
+    delete!(db, "hola")
+    @test_throws KeyError db["hola"]
     close(db)
     @test db.handle        == C_NULL
     @test db.options       == C_NULL
@@ -130,5 +150,7 @@ end
 end
 
 run(`rm -rf level.db`)
+run(`rm -rf level.db.0`)
+run(`rm -rf level.db.1`)
 run(`rm -rf level.db.2`)
 run(`rm -rf level.db.3`)
