@@ -1,7 +1,8 @@
 using Test
 using LevelDB
 
-Path = mktempdir(prefix="LevelDB-tests", cleanup=false)
+Path = mktempdir(prefix="LevelDB-tests", cleanup=!Sys.iswindows())  # seems to fail in windows
+
 @testset "DB basic operations" begin
     dbname = joinpath(Path, "L.db.0")
     @show dbname
