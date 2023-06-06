@@ -114,12 +114,18 @@ Iterate over all `key => value` pairs in a `DB`.
 
 
 ```julia
-julia> for (key, value) in Range(db, key1, key2)
+julia> for (key, value) in Range(db, keylow, keyhigh)
            #do something with the key value pair
        end
 ```
 Iterate over a range between key1 and key2 (inclusive)
 
+```julia
+julia> for (key, value) in Prefix(db, keyprefix)
+           #do something with the key value pair
+       end
+```
+Iterate over a range defined by a prefix
 
 ## Authors
 - Eric S. Tellez (donsadit@gmail.com)

@@ -6,7 +6,7 @@ Path = mktempdir(prefix="LevelDB-tests", cleanup=!Sys.iswindows())  # seems to f
 @testset "DB basic operations" begin
     dbname = joinpath(Path, "L.db.0")
     @show dbname
-    @test_throws ErrorException DB(dbname)
+    @test_throws ArgumentError DB(dbname)
 
     db = LevelDB.DB(dbname, Vector{UInt8}, Vector{UInt8}, create_if_missing = true)
     close(db)
@@ -31,7 +31,7 @@ end
 
 @testset "DB basic operations - String" begin
     dbname = joinpath(Path, "L.db.1")
-    @test_throws ErrorException LevelDB.DB(dbname)
+    @test_throws ArgumentError LevelDB.DB(dbname)
 
     db = DB(dbname, create_if_missing = true)
     db["hola"] = "mundo!"
@@ -101,7 +101,7 @@ end
 
 
 @testset "DB Errors" begin
-    @test_throws ErrorException DB("level.db.3")
+    @test_throws ArgumentError DB(joinpath(Path, "level.db.3"))
 end
 
 @testset "DB key range iterator" begin

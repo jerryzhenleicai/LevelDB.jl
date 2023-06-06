@@ -103,6 +103,9 @@ function DB(
         create_if_missing :: Bool = false,
         error_if_exists   :: Bool = false
     ) where {KeyType,ValueType}
+    if !create_if_missing && !isdir(dir)
+        throw(ArgumentError("The database path $dir must exists"))
+    end
     options = _leveldb_options_create(create_if_missing = create_if_missing,
                                       error_if_exists   = error_if_exists)
     write_options = _leveldb_writeoptions_create()
