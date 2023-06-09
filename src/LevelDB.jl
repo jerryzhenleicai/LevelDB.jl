@@ -1,20 +1,14 @@
 module LevelDB
 
-using BinDeps
-
-depsfile = joinpath(dirname(pathof(LevelDB)), "..", "deps", "deps.jl")
-if isfile(depsfile)
-    include(depsfile)
-else
-    error("LevelDB not properly installed. Please run Pkg.build(\"LevelDB\")")
-end
+using LevelDB_jll
+export DB, Range, Prefix, put!, put_batch!, fetch, fetch_batch, del!, del_batch!
 
 include("libleveldb_common.jl")
 include("libleveldb_api.jl")
 
 macro destroy_if_not_null(f, ptr)
     esc(quote
-          if $ptr != C_NULL
+        if $ptr != C_NULL
           $f($ptr)
           $ptr = C_NULL
         end
@@ -39,9 +33,10 @@ macro check_err_ref(f, g = :())
     end)
 end
 
+
 # This needs to be mutable, because handle == C_NULL is used to avoid double
 # free
-mutable struct DB
+mutable struct DB{KeyType,ValueType}
     dir           :: String
     handle        :: Ptr{leveldb_t}
     options       :: Ptr{leveldb_options_t}
@@ -49,13 +44,46 @@ mutable struct DB
     read_options  :: Ptr{leveldb_readoptions_t}
 end
 
+serializekey(::DB, data::String) = pointer(data), sizeof(data)
+serializevalue(::DB, data::String) = pointer(data), sizeof(data)
+serializekey(::DB, data::Vector) = pointer(data), sizeof(data)
+serializevalue(::DB, data::Vector) = pointer(data), sizeof(data)
+
+function deserialize_(::Type{T}, data, len::Integer, copy_::Bool)::T where T
+    p = convert(Ptr{T}, data)
+    p_ = unsafe_load(p)
+    copy_ ? copy(p_) : p_
+end
+
+function deserialize_(::Type{Vector{T}}, data, len::Integer, copy_::Bool)::Vector{T} where T
+    p = convert(Ptr{T}, data)
+    if copy_
+        copy(unsafe_wrap(Vector{T}, p, len ÷ sizeof(T); own=false))
+    else
+        unsafe_wrap(Vector{T}, p, len ÷ sizeof(T); own=true)
+    end
+end
+
+function deserialize_(::Type{String}, data, len::Integer, copy_::Bool)
+    p = convert(Ptr{UInt8}, data)
+    p_ = unsafe_string(p, len)
+    copy_ ? deepcopy(p_) : p_
+end
+
+
+deserializekey(::DB{K,V}, data::Cstring, len::Integer, copy_::Bool) where {K,V} = deserialize_(K, data, len, copy_)
+deserializevalue(::DB{K,V}, data::Cstring, len::Integer, copy_::Bool) where {K,V} = deserialize_(V, data, len, copy_)
+
 """
-    LevelDB.DB(file_path; create_if_missing = false, error_if_exists = false)::LevelDB.DB
+    DB(file_path, KeyType, ValueType; create_if_missing = false, error_if_exists = false)
 
 Opens or creates a `LevelDB` database at `file_path`.
 
+
 # Parameters
 - `file_path::String`: The full path to a directory that hosts a `LevelDB` database.
+- `KeyType::Type` type of keys (defaults to `String`).
+- `ValueType::Type` type values (defaults to `String`).
 - `create_if_missing::Bool`: When `true` the database will be created if it does not exist.
 - `error_if_exists::Bool`: When `true` an error will be thrown if the database already exists.
 
@@ -69,10 +97,15 @@ Opens or creates a `LevelDB` database at `file_path`.
     close(db)
 """
 function DB(
-        dir               :: String;
+        dir               :: String,
+                          :: Type{KeyType} = String,
+                          :: Type{ValueType} = String;
         create_if_missing :: Bool = false,
         error_if_exists   :: Bool = false
-    )
+    ) where {KeyType,ValueType}
+    if !create_if_missing && !isdir(dir)
+        throw(ArgumentError("The database path $dir must exists"))
+    end
     options = _leveldb_options_create(create_if_missing = create_if_missing,
                                       error_if_exists   = error_if_exists)
     write_options = _leveldb_writeoptions_create()
@@ -89,7 +122,7 @@ function DB(
     @assert write_options != C_NULL
     @assert  read_options != C_NULL
 
-    db = DB(dir, handle, options, write_options, read_options)
+    db = DB{KeyType,ValueType}(dir, handle, options, write_options, read_options)
 
     return db
 end
@@ -161,6 +194,12 @@ end
 
 Base.isopen(db::DB) = db.handle != C_NULL
 
+
+"""
+    close(db::DB)
+
+Closes a database (free resouces)
+"""
 function Base.close(db::DB)
     @destroy_if_not_null leveldb_close                db.handle
     @destroy_if_not_null leveldb_options_destroy      db.options
@@ -172,63 +211,112 @@ function Base.show(io::IO, db::DB)
     print(io, "LevelDB: ", db.dir)
 end
 
-function Base.getindex(db::DB, i::Vector{UInt8})
+@inline Base.getindex(db::DB, key) = fetch(db, key)
+
+
+"""
+    fetch(db::DB{K,V}, key::K)::V where {K,V}
+
+Fetches value associated to the given key
+"""
+function fetch(db::DB{K,V}, key::K)::V where {K,V}
     val_size = Ref{Csize_t}(0)
+    keyptr, keysize = serializekey(db, key)
     @check_err_ref res_ptr = leveldb_get(db.handle, db.read_options,
-                                         pointer(i), length(i),
+                                         keyptr, keysize,
                                          val_size, err_ref)
 
     size = val_size[]
     if size == 0
-        throw(KeyError(i))
+        throw(KeyError(key))
     end
 
     @assert val_size != C_NULL
     @assert res_ptr != C_NULL
 
-    res_ptr_uint8 = convert(Ptr{UInt8}, res_ptr)
-
-    # NOTE: we own the memory, in theory libleveldb has to free `res_ptr`.
-    unsafe_wrap(Vector{UInt8}, res_ptr_uint8, (size, ), own = true)
+    deserializevalue(db, res_ptr, size, false)
 end
 
-function Base.setindex!(db::DB, v::Vector{UInt8}, i::Vector{UInt8})
+@inline Base.setindex!(db::DB, val, key) = put!(db, val, key)
+
+"""
+    put!(db::DB{K,V}, val::V, key::K)::V where {K,V}
+    
+
+Adds pair `key => val` to the database
+"""
+function put!(db::DB{K,V}, val::V, key::K)::V where {K,V}
+    keyptr, keysize = serializekey(db, key)
+    valptr, valsize = serializevalue(db, val)
     @check_err_ref leveldb_put(db.handle, db.write_options,
-                               pointer(i), length(i),
-                               pointer(v), length(v),
+                               keyptr, keysize,
+                               valptr, valsize,
                                err_ref)
-    return v
+    val
 end
 
-function Base.delete!(db::DB, i::Vector{UInt8})
+Base.delete!(db::DB, key) = del!(db, key)
+
+
+"""
+    del!(db::DB{K,V}, key::K) where {K,V}
+
+
+Removes `key` and it associated value from the database
+"""
+function del!(db::DB{K,V}, key::K) where {K,V}
+    keyptr, keysize = serializekey(db, key)
     @check_err_ref leveldb_delete(db.handle, db.write_options,
-                                  pointer(i), length(i),
+                                  keyptr, keysize,
                                   err_ref)
-    return db
+    db
 end
 
-function Base.delete!(db, idxs)
-    for i in idxs
-        delete!(db, i)
+"""
+    del_batch!(db::DB{K,V}, keys::AbstractVector{K}) where {K,V}
+
+Removes all pairs associated with the given keys 
+"""
+function del_batch!(db::DB{K,V}, keys::AbstractVector{K}) where {K,V}
+    for k in keys
+        delete!(db, k)
     end
 
-    return db
+    db
 end
 
-function Base.setindex!(db::DB, v, k)
+"""
+    fetch_batch(db::DB{K,V}, keys::AbstractVector{K}) where {K,V}
+
+Retrieves all pairs associated with the given list of keys
+"""
+function fetch_batch(db::DB{K,V}, keys::AbstractVector{K}) where {K,V}
+    [db[k] for k in keys]
+end
+
+"""
+    put_batch!(db::DB{K,V}, pairs) where {K,V}
+
+Adds all pairs to the database
+"""
+function put_batch!(db::DB{K,V}, pairs) where {K,V}
+    @assert eltype(pairs) in (Pair{K,V}, Tuple{K,V}) 
     batch = leveldb_writebatch_create()
 
-    for (kk, vv) in zip(k, v)
+    for (key, val) in pairs
+        keyptr, keysize = serializekey(db, key)
+        valptr, valsize = serializevalue(db, val)
         leveldb_writebatch_put(batch,
-                               pointer(kk), length(kk),
-                               pointer(vv), length(vv))
+                               keyptr, keysize, 
+                               valptr, valsize)
     end
 
     @check_err_ref leveldb_write(db.handle, db.write_options, batch, err_ref) begin
         leveldb_writebatch_destroy(batch)
     end
-
     leveldb_writebatch_destroy(batch)
+
+    pairs
 end
 
 # This needs to be mutable, because handle == C_NULL is used to avoid double
@@ -244,55 +332,37 @@ function Iterator(db::DB)
     Iterator(leveldb_create_iterator(db.handle, db.read_options))
 end
 
-Base.IteratorEltype(::DB) = Vector{UInt8}
-Base.IteratorSize(::DB) = SizeUnknown()
+Base.IteratorEltype(::DB) = Base.HasEltype()
+Base.eltype(::DB{K,V}) where {K,V} = Pair{K,V}
+Base.IteratorSize(::DB) = Base.SizeUnknown()
 
 Base.seekstart(it::Iterator) = leveldb_iter_seek_to_first(it.handle)
 # Base.seekend(it::Iterator) = leveldb_iter_seek_to_last(it.handle)
 
-Base.close(it::AbstractIterator) = @destroy_if_not_null leveldb_iter_destroy it.handle
+function Base.close(it::AbstractIterator)
+    @destroy_if_not_null leveldb_iter_destroy it.handle
+end
 
 is_valid(it::AbstractIterator) = it.handle != C_NULL && leveldb_iter_valid(it.handle) > 0x00
 
-function get_key_val(it::AbstractIterator)
-
-    # key
-    key_size = Ref{Csize_t}(0)
-    key_ptr = leveldb_iter_key(it.handle, key_size)
-
-    key_size_val = key_size[]
-    key = Vector{UInt8}(undef, key_size_val)
-    unsafe_copyto!(pointer(key), convert(Ptr{UInt8}, key_ptr), key_size_val)
-
-    # value
-    val_size = Ref{Csize_t}(0)
-    val_ptr = leveldb_iter_value(it.handle, val_size)
-
-    val_size_val = val_size[]
-    val = Vector{UInt8}(undef, val_size_val)
-    unsafe_copyto!(pointer(val), convert(Ptr{UInt8}, val_ptr), val_size_val)
+function get_key_val(db::DB, it::AbstractIterator)
+    len = Ref{Csize_t}(0)
+    keyptr = leveldb_iter_key(it.handle, len)
+    key = deserializekey(db, keyptr, len[], true)
+    valptr = leveldb_iter_value(it.handle, len)
+    val = deserializevalue(db, valptr, len[], true)
 
     return key => val
 end
 
-function Base.iterate(db::DB)
-
-    it = Iterator(db)
-    seekstart(it)
-
-    if is_valid(it)
-        kv = get_key_val(it)
-        leveldb_iter_next(it.handle)
-        return  kv, it
-    else
-        close(it)
-        return nothing
+function Base.iterate(db::DB, it=nothing)
+    if it === nothing
+        it = Iterator(db)
+        seekstart(it)
     end
-end
 
-function Base.iterate(db::DB, it::Iterator)
     if is_valid(it)
-        kv = get_key_val(it)
+        kv = get_key_val(db, it)
         leveldb_iter_next(it.handle)
         return kv, it
     else
@@ -302,51 +372,38 @@ function Base.iterate(db::DB, it::Iterator)
 end
 
 
-####################################################
-# iterator that iterates over a range of keys of the DB
-###
-mutable struct RangeIterator <: AbstractIterator
-    handle :: Ptr{leveldb_iterator_t}
-    key_start::Vector{UInt8}
-    key_end::Vector{UInt8}
-end
-
-
 """
-    LevelDB.RangeView(db::LevelDB.DB, key_start::Vector{UInt8}, key_end::Vector{UInt8})::LevelDB.RangeView
+    Range(db::LevelDB.DB, key_start, key_end)::LevelDB.Range
 
 Iterates over a subset of the data base
 
 # Parameters
 - `db::LevelDB.DB`: A `LevelDB.DB` object to iterate over.
-- `key_start::Vector{UInt8}`: Iterate from here.
-- `key_end::Vector{UInt8}`: Iterate until here.
+- `key_start`: Iterate from here.
+- `key_end`: Iterate until here.
 
 # Example
-    for (key, value) in LevelDB.RangeView(db, [0x01], [0x05])
+    for (key, value) in LevelDB.Range(db, [0x01], [0x05])
         # do something with the key and value
     end
 """
-mutable struct RangeView
-    db :: DB
-    key_start::Vector{UInt8}
-    key_end::Vector{UInt8}
+struct Range{K,V}
+    db :: DB{K,V}
+    key_start::K
+    key_end::K
 end
 
-Base.IteratorEltype(::RangeView) = Vector{UInt8}
-Base.IteratorSize(::RangeView) = SizeUnknown()
+Base.IteratorEltype(::Range) = Base.HasEltype()
+Base.eltype(::Range{K,V}) where {K,V} = Pair{K,V}
+Base.IteratorSize(::Range) = Base.SizeUnknown()
 
 
-is_valid(it::RangeIterator) = it.handle != C_NULL && leveldb_iter_valid(it.handle) > 0x00
-
-function Base.iterate(view::RangeView)
-    it = RangeIterator(
-                       leveldb_create_iterator(view.db.handle, view.db.read_options),
-                       view.key_start, view.key_end)
-
-    leveldb_iter_seek(it.handle, pointer(it.key_start), length(it.key_start))
+function Base.iterate(view::Range)
+    it = Iterator(leveldb_create_iterator(view.db.handle, view.db.read_options))
+    keyptr, keylen = serializekey(view.db, view.key_start)
+    leveldb_iter_seek(it.handle, keyptr, keylen)
     if is_valid(it)
-        kv = get_key_val(it)
+        kv = get_key_val(view.db, it)
         leveldb_iter_next(it.handle)
         return kv, it
     else
@@ -356,21 +413,70 @@ function Base.iterate(view::RangeView)
 end
 
 
-function Base.iterate(view::RangeView, it::RangeIterator)
+function Base.iterate(view::Range, it::Iterator)
     if is_valid(it)
         # key is past the range?
-        kv = get_key_val(it)
-        if kv[1] > it.key_end
+        kv = get_key_val(view.db, it)
+        if kv[1] > view.key_end
             close(it)
             return nothing
         else
             leveldb_iter_next(it.handle)
-            return  kv, it
+            return kv, it
         end
     else
         return nothing
     end
 end
 
+"""
+    Prefix(db::DB, prefix::String)
+
+Iterates over a subset of the data base with a common prefix
+
+# Parameters
+- `DB`: A `LevelDB.DB` object to iterate over.
+- `prefix`: Iterate from here.
+
+"""
+struct Prefix{V}
+    db :: DB{String,V}
+    prefix::String
+end
+
+Base.IteratorEltype(::Prefix) = Base.HasEltype()
+Base.eltype(::Prefix{V}) where V = Pair{String,V}
+Base.IteratorSize(::Prefix) = Base.SizeUnknown()
+
+function Base.iterate(view::Prefix)
+    it = Iterator(leveldb_create_iterator(view.db.handle, view.db.read_options))
+    keyptr, keylen = serializekey(view.db, view.prefix)
+    leveldb_iter_seek(it.handle, keyptr, keylen)
+    if is_valid(it)
+        kv = get_key_val(view.db, it)
+        leveldb_iter_next(it.handle)
+        return kv, it
+    else
+        close(it)
+        return nothing
+    end
+end
+
+
+function Base.iterate(view::Prefix, it::Iterator)
+    if is_valid(it)
+        # key is past the range?
+        kv = get_key_val(view.db, it)
+        if !startswith(kv[1], view.prefix)
+            close(it)
+            return nothing
+        else
+            leveldb_iter_next(it.handle)
+            return kv, it
+        end
+    else
+        return nothing
+    end
+end
 
 end # module LevelDB
